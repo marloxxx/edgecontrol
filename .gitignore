@@ -1,4 +1,49 @@
-# v0 sandbox internal files
+# --- Environment & secrets (never commit) ---
+.env
+.env.*
+!.env.example
+
+# --- Dependencies ---
+node_modules/
+
+# --- Build outputs ---
+dist/
+.next/
+out/
+build/
+.turbo/
+
+# --- Logs & caches ---
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+.cache/
+.parcel-cache/
+**/.vite/
+
+# --- Test & coverage ---
+coverage/
+.nyc_output/
+
+# --- TypeScript ---
+*.tsbuildinfo
+
+# --- OS & editors ---
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Docker / local TLS (if copied onto host) ---
+**/acme.json
+letsencrypt/
+
+# --- v0 sandbox (legacy) ---
 __v0_runtime_loader.js
 __v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
@@ -7,15 +52,5 @@ __v0_jsx-dev-runtime.ts
 .vercel/
 next.user-config.*
 
-# Environment variables
-.env*.local
-
-# Common ignores
-node_modules
-**/node_modules
-.next/
-**/.next
-dist/
-**/dist
-.DS_Store
+# --- Misc ---
 backups/

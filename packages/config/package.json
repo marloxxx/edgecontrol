@@ -1,0 +1,11 @@
+{
+  "name": "@edgecontrol/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "lint": "echo \"config lint placeholder\"",
+    "typecheck": "echo \"config typecheck placeholder\""
+  }
+}

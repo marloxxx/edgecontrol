@@ -1,0 +1,26 @@
+{
+  "name": "@edgecontrol/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "lint": "echo \"db lint placeholder\"",
+    "typecheck": "echo \"db typecheck placeholder\"",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "prisma db seed"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.2",
+    "prisma": "^6.8.2",
+    "tsx": "^4.19.2"
+  }
+}

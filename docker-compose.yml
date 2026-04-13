@@ -1,0 +1,123 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: edgecontrol-traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml
+      - letsencrypt:/letsencrypt
+    networks:
+      - public
+      - internal
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: edgecontrol-api
+    environment:
+      API_PORT: 3000
+      DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      TRAEFIK_DYNAMIC_CONFIG_PATH: /traefik-config/dynamic.yml
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      HEALTH_CHECK_INTERVAL_MS: ${HEALTH_CHECK_INTERVAL_MS:-10000}
+      LATENCY_WARN_MS: ${LATENCY_WARN_MS:-800}
+      LATENCY_CRIT_MS: ${LATENCY_CRIT_MS:-2000}
+      MAX_CONSECUTIVE_FAILURES: ${MAX_CONSECUTIVE_FAILURES:-3}
+    volumes:
+      - ./docker/traefik:/traefik-config
+    depends_on:
+      - db
+      - redis
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ["node", "dist/worker/standalone-worker.js"]
+    container_name: edgecontrol-worker
+    environment:
+      API_PORT: 3000
+      DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      TRAEFIK_DYNAMIC_CONFIG_PATH: /traefik-config/dynamic.yml
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      HEALTH_CHECK_INTERVAL_MS: ${HEALTH_CHECK_INTERVAL_MS:-10000}
+      LATENCY_WARN_MS: ${LATENCY_WARN_MS:-800}
+      LATENCY_CRIT_MS: ${LATENCY_CRIT_MS:-2000}
+      MAX_CONSECUTIVE_FAILURES: ${MAX_CONSECUTIVE_FAILURES:-3}
+    volumes:
+      - ./docker/traefik:/traefik-config
+    depends_on:
+      - db
+      - redis
+    networks:
+      - internal
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: edgecontrol-web
+    depends_on:
+      - api
+    networks:
+      - internal
+    environment:
+      VITE_API_URL: http://api:3000
+
+  db:
+    image: postgres:16-alpine
+    container_name: edgecontrol-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: edgecontrol
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: edgecontrol-redis
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+  letsencrypt:
+
+networks:
+  public:
+    external: true
+  internal:
+    internal: true

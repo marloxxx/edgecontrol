@@ -1,0 +1,4 @@
+
+> @edgecontrol/trpc@0.1.0 build /Users/dti-horras/Documents/Programming/Javascript/edgecontrol/packages/trpc
+> tsc -p tsconfig.json
+

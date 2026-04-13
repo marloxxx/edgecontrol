@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  DEVELOPER
+  VIEWER
+}
+
+enum ServiceStatus {
+  UP
+  SLOW
+  DOWN
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum CircuitBreakerStatus {
+  OPEN
+  CLOSED
+  HALF_OPEN
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  ROLLBACK
+  ENABLE
+  DISABLE
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  passwordHash  String
+  role          Role            @default(VIEWER)
+  createdAt     DateTime        @default(now())
+  lastLoginAt   DateTime?
+  failedLogins  Int             @default(0)
+  lockedUntil   DateTime?
+  serviceAccess ServiceAccess[]
+  auditLogs     AuditLog[]
+}
+
+model Service {
+  id                    String    @id @default(cuid())
+  name                  String    @unique
+  domain                String    @unique
+  targetHost            String
+  targetPort            Int
+  protocol              String    @default("http")
+  type                  String    @default("api")
+  enabled               Boolean   @default(true)
+  weight                Int       @default(100)
+  healthPath            String    @default("/health")
+  rateLimitAvg          Int?
+  rateLimitBurst        Int?
+  circuitBreakerEnabled Boolean   @default(false)
+  circuitBreakerStatus  CircuitBreakerStatus @default(CLOSED)
+  fallbackServiceId     String?
+  tags                  String[]
+  notes                 String?
+  nodeId                String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  fallbackFor           Service[] @relation("FallbackService")
+  fallbackService       Service?  @relation("FallbackService", fields: [fallbackServiceId], references: [id])
+  accessList            ServiceAccess[]
+  healthChecks          HealthCheck[]
+  alerts                Alert[]
+  node                  Node?     @relation(fields: [nodeId], references: [id])
+}
+
+model ServiceAccess {
+  id        String  @id @default(cuid())
+  userId    String
+  serviceId String
+  canEdit   Boolean @default(false)
+  user      User    @relation(fields: [userId], references: [id])
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  @@unique([userId, serviceId])
+}
+
+model RouteVersion {
+  id             String   @id @default(cuid())
+  versionName    String
+  configSnapshot Json
+  createdBy      String
+  createdAt      DateTime @default(now())
+  isActive       Boolean  @default(false)
+}
+
+model Node {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  host      String
+  region    String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  services  Service[]
+}
+
+model HealthCheck {
+  id           String        @id @default(cuid())
+  serviceId    String
+  status       ServiceStatus
+  latencyMs    Int
+  statusCode   Int?
+  errorMessage String?
+  checkedAt    DateTime      @default(now())
+  service      Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, checkedAt])
+}
+
+model Alert {
+  id         String        @id @default(cuid())
+  serviceId  String
+  severity   AlertSeverity
+  message    String
+  status     AlertStatus   @default(OPEN)
+  createdAt  DateTime      @default(now())
+  resolvedAt DateTime?
+  service    Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  actor     String
+  action    AuditAction
+  target    String
+  oldValue  Json?
+  newValue  Json?
+  userId    String?
+  createdAt DateTime    @default(now())
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}

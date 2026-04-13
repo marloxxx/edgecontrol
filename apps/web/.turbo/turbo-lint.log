@@ -1,0 +1,6 @@
+
+> @edgecontrol/web@0.1.0 lint /Users/dti-horras/Documents/Programming/Javascript/edgecontrol/apps/web
+> eslint .
+
+sh: eslint: command not found
+ ELIFECYCLE  Command failed.

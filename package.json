@@ -1,0 +1,19 @@
+{
+  "name": "edgecontrol",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.18.3",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @edgecontrol/web dev",
+    "dev:api": "pnpm --filter @edgecontrol/api dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8",
+    "typescript": "5.7.3"
+  }
+}

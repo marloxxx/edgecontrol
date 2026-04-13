@@ -1,0 +1,4 @@
+
+> @edgecontrol/api@0.1.0 typecheck /Users/dti-horras/Documents/Programming/Javascript/edgecontrol/apps/api
+> tsc --noEmit -p tsconfig.json
+

@@ -1,0 +1,170 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-background: #0a0a0f;
+  --color-surface: #0d0d14;
+  --color-surface-raised: #111118;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-subtle: rgba(255, 255, 255, 0.03);
+  --color-overlay-3: rgba(255, 255, 255, 0.03);
+  --color-overlay-5: rgba(255, 255, 255, 0.05);
+
+  --color-cyan-accent: #00d4ff;
+  --color-cyan-muted: rgba(0, 212, 255, 0.12);
+  --color-cyan-border: rgba(0, 212, 255, 0.25);
+  --color-emerald-accent: #10b981;
+  --color-amber-accent: #f59e0b;
+  --color-red-accent: #ef4444;
+  --color-slate-muted: #64748b;
+
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --font-sans: "Geist", "DM Sans", system-ui, sans-serif;
+
+  --radius-card: 0.5rem;
+  --radius-badge: 0.25rem;
+  --radius: 0.5rem;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-glow-cyan: 0 0 20px rgba(0, 212, 255, 0.15);
+}
+
+@layer base {
+  :root {
+    --brand-primary: #184980;
+    --brand-primary-hover: #123c69;
+    --brand-secondary: #00b0a8;
+    --brand-secondary-hover: #01968f;
+    --brand-cyan: #00b7d7;
+    --background: 0 0% 4%;
+    --foreground: 210 40% 95%;
+    --card: 240 10% 6%;
+    --card-foreground: 210 40% 95%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 210 40% 95%;
+    --border: 240 6% 12%;
+    --input: 240 6% 10%;
+    --primary: 192 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --muted: 240 6% 14%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 240 6% 14%;
+    --accent-foreground: 210 40% 95%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --ring: 192 100% 50%;
+    --sidebar: 240 12% 7%;
+    --sidebar-foreground: 210 40% 95%;
+    --sidebar-border: 240 6% 12%;
+    --sidebar-accent: 192 100% 50%;
+    --sidebar-accent-foreground: 210 40% 95%;
+    --sidebar-primary: 192 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-ring: 192 100% 50%;
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body {
+    background: var(--color-background);
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .bg-background {
+    background: var(--color-background);
+  }
+  .bg-surface {
+    background: var(--color-surface);
+  }
+  .bg-surface-raised {
+    background: var(--color-surface-raised);
+  }
+  .bg-overlay-3 {
+    background: var(--color-overlay-3);
+  }
+  .bg-overlay-5 {
+    background: var(--color-overlay-5);
+  }
+  .border-border {
+    border-color: var(--color-border);
+  }
+  .border-border-subtle {
+    border-color: var(--color-border-subtle);
+  }
+  .text-cyan-accent {
+    color: var(--color-cyan-accent);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .animate-status-pulse {
+    animation: status-pulse 1.5s ease-in-out infinite;
+  }
+  .animate-status-pulse-fast {
+    animation: status-pulse 0.8s ease-in-out infinite;
+  }
+  .animate-fade-slide-up {
+    animation: fade-slide-up 0.2s ease-out;
+  }
+
+  /* PTSI brand (light surfaces) */
+  .bg-ptsi-primary {
+    background-color: var(--brand-primary);
+  }
+  .hover\:bg-ptsi-primary-hover:hover {
+    background-color: var(--brand-primary-hover);
+  }
+  .text-ptsi-primary {
+    color: var(--brand-primary);
+  }
+  .text-ptsi-secondary {
+    color: var(--brand-secondary);
+  }
+  .border-ptsi-accent {
+    border-color: color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+  }
+
+  /** Login — light canvas (scoped to .login-ptsi) */
+  .login-ptsi {
+    background: linear-gradient(165deg, #f4f8fc 0%, #e8f0f8 40%, #dfeaf5 100%);
+    color: #0f172a;
+  }
+}

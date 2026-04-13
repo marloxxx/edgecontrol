@@ -1,0 +1,43 @@
+{
+  "name": "@edgecontrol/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts",
+    "start:dev": "tsx watch src/main.ts",
+    "lint": "echo \"api lint placeholder\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "worker:dev": "tsx watch src/worker/standalone-worker.ts",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@edgecontrol/config": "workspace:*",
+    "@edgecontrol/db": "workspace:*",
+    "@trpc/server": "^11.0.0-rc.446",
+    "@edgecontrol/trpc": "workspace:*",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "bcryptjs": "^3.0.2",
+    "bullmq": "^5.61.0",
+    "cors": "^2.8.5",
+    "ioredis": "^5.8.1",
+    "js-yaml": "^4.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/js-yaml": "^4.0.9",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.14.1",
+    "tsx": "^4.19.2",
+    "typescript": "5.7.3"
+  }
+}

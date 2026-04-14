@@ -15,10 +15,54 @@ RUN_SEED="${RUN_SEED:-1}"
 RUN_BUILD="${RUN_BUILD:-1}"
 RUN_TEST="${RUN_TEST:-1}"
 DOCKER_PREP="${DOCKER_PREP:-1}"
+INSTALL_DOCKER="${INSTALL_DOCKER:-1}"
 
 log() { printf '\033[0;32m[%s]\033[0m %s\n' "$(date '+%H:%M:%S')" "$*"; }
 warn() { printf '\033[0;33m[%s]\033[0m %s\n' "$(date '+%H:%M:%S')" "$*" >&2; }
 die() { warn "$*"; exit 1; }
+
+# Install Docker when the CLI is missing (DOCKER_PREP + INSTALL_DOCKER). macOS: Homebrew cask; Linux: get.docker.com.
+install_docker_darwin() {
+  if ! command -v brew >/dev/null 2>&1; then
+    die "Docker is not installed and Homebrew was not found. Install Homebrew (https://brew.sh) or Docker Desktop (https://docs.docker.com/desktop/install/mac-install/), then re-run this script."
+  fi
+  log "Installing Docker Desktop via Homebrew (may take several minutes)..."
+  brew install --cask docker
+  log "Docker Desktop installed. Open Docker Desktop from Applications and wait until it reports 'running', then re-run this script if docker network creation failed."
+}
+
+install_docker_linux() {
+  if ! command -v curl >/dev/null 2>&1; then
+    die "Docker is not installed and curl was not found. Install curl or Docker Engine (https://docs.docker.com/engine/install/), then re-run."
+  fi
+  local tmp
+  tmp="$(mktemp)"
+  log "Installing Docker Engine via get.docker.com (requires administrator privileges)..."
+  curl -fsSL https://get.docker.com -o "$tmp"
+  if [[ "$(id -u)" -eq 0 ]]; then
+    sh "$tmp"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo sh "$tmp"
+  else
+    rm -f "$tmp"
+    die "Docker install on Linux needs root or sudo. See https://docs.docker.com/engine/install/"
+  fi
+  rm -f "$tmp"
+}
+
+try_install_docker() {
+  case "$(uname -s)" in
+    Darwin)
+      install_docker_darwin
+      ;;
+    Linux)
+      install_docker_linux
+      ;;
+    *)
+      die "Automatic Docker install is not supported on $(uname -s). Install Docker: https://docs.docker.com/get-docker/"
+      ;;
+  esac
+}
 
 # Replace KEY=value in .env (key must match line start). Uses @ as sed delimiter; values are hex-only.
 replace_env_line() {
@@ -72,6 +116,7 @@ Environment (each defaults to 1 = run; set to 0 to skip):
   RUN_BUILD        `pnpm build` (turbo)
   RUN_TEST         `pnpm test` (turbo)
   DOCKER_PREP      Create Docker network `public` if missing (for docker-compose.yml)
+  INSTALL_DOCKER   If Docker CLI is missing and DOCKER_PREP=1, attempt install (macOS: brew; Linux: get.docker.com). Default 1; set 0 to skip.
 
 Examples:
   docker compose up -d db redis    # then ./scripts/setup.sh with a DATABASE_URL that points at Postgres
@@ -140,7 +185,16 @@ fi
 
 if [[ "$DOCKER_PREP" == "1" ]]; then
   if ! command -v docker >/dev/null 2>&1; then
-    warn "DOCKER_PREP is on but docker not found — skipping network creation."
+    if [[ "$INSTALL_DOCKER" == "1" ]]; then
+      try_install_docker
+    else
+      warn "DOCKER_PREP is on but docker not found — skipping network creation (INSTALL_DOCKER=0)."
+    fi
+  fi
+  if ! command -v docker >/dev/null 2>&1; then
+    warn "DOCKER_PREP is on but docker CLI still not available — skipping network creation."
+  elif ! docker info >/dev/null 2>&1; then
+    warn "Docker is installed but the daemon is not running (or your user cannot access it). Start Docker Desktop / dockerd, add your user to the 'docker' group on Linux if needed, then create the network: docker network create public"
   else
     if docker network inspect public >/dev/null 2>&1; then
       log "Docker network 'public' already exists"

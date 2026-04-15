@@ -77,19 +77,23 @@ replace_env_line() {
   fi
 }
 
-# Fill JWT / DB / Redis / webhook / admin & seed passwords. Updates DATABASE_URL and REDIS_URL with embedded credentials (hex, URL-safe).
+# Fill JWT / DB / Redis / webhook / admin & seed passwords, MinIO root password, Grafana admin.
+# Updates DATABASE_URL and REDIS_URL with embedded credentials (hex, URL-safe).
+# If BASE_DOMAIN is non-empty in $f, sets MINIO_S3_DOMAIN=s3.<base>, MINIO_CONSOLE_DOMAIN=minio.<base>,
+# and matching MINIO_SERVER_URL / MINIO_BROWSER_REDIRECT_URL (https).
 apply_generated_secrets() {
   local f="$1"
   if ! command -v openssl >/dev/null 2>&1; then
     warn "openssl not found — cannot generate secrets. Install OpenSSL or set values in $f manually."
     return 1
   fi
-  local jwt dbpw rspw wh seedpw
+  local jwt dbpw rspw wh seedpw minio_pw base
   jwt=$(openssl rand -hex 32)
   dbpw=$(openssl rand -hex 24)
   rspw=$(openssl rand -hex 24)
   wh=$(openssl rand -hex 32)
   seedpw=$(openssl rand -hex 16)
+  minio_pw=$(openssl rand -hex 24)
   replace_env_line JWT_SECRET "$jwt" "$f"
   replace_env_line DB_PASSWORD "$dbpw" "$f"
   replace_env_line REDIS_PASSWORD "$rspw" "$f"
@@ -100,6 +104,16 @@ apply_generated_secrets() {
   # Default compose stack uses Redis without ACL; password is stored for production / custom compose.
   replace_env_line REDIS_URL "redis://redis:6379" "$f"
   replace_env_line GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)" "$f"
+  replace_env_line MINIO_ROOT_PASSWORD "$minio_pw" "$f"
+  base="$(read_env_var BASE_DOMAIN "$f")"
+  base="${base//$'\r'/}"
+  base="${base// /}"
+  if [[ -n "$base" ]]; then
+    replace_env_line MINIO_S3_DOMAIN "s3.${base}" "$f"
+    replace_env_line MINIO_CONSOLE_DOMAIN "minio.${base}" "$f"
+    replace_env_line MINIO_SERVER_URL "https://s3.${base}" "$f"
+    replace_env_line MINIO_BROWSER_REDIRECT_URL "https://minio.${base}" "$f"
+  fi
 }
 
 # Read a single KEY=value from .env (first match; value may contain =).
@@ -151,6 +165,23 @@ print_credentials_summary() {
   printf '\n%s\n' "Traefik / TLS (VPS 1)"
   v="$(read_env_var ACME_EMAIL "$f")"
   printf '  %-30s %s\n' "ACME_EMAIL" "${v:-"(empty)"}"
+  printf '\n%s\n' "MinIO (Traefik / TLS — set BASE_DOMAIN before first setup to auto-fill hostnames)"
+  v="$(read_env_var BASE_DOMAIN "$f")"
+  printf '  %-30s %s\n' "BASE_DOMAIN" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_ROOT_USER "$f")"
+  printf '  %-30s %s\n' "MINIO_ROOT_USER" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_ROOT_PASSWORD "$f")"
+  printf '  %-30s %s\n' "MINIO_ROOT_PASSWORD" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_BUCKET "$f")"
+  printf '  %-30s %s\n' "MINIO_BUCKET" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_S3_DOMAIN "$f")"
+  printf '  %-30s %s\n' "MINIO_S3_DOMAIN" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_CONSOLE_DOMAIN "$f")"
+  printf '  %-30s %s\n' "MINIO_CONSOLE_DOMAIN" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_SERVER_URL "$f")"
+  printf '  %-30s %s\n' "MINIO_SERVER_URL" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_BROWSER_REDIRECT_URL "$f")"
+  printf '  %-30s %s\n' "MINIO_BROWSER_REDIRECT_URL" "${v:-"(empty)"}"
   printf '\n%s\n' "Webhooks & integrations"
   v="$(read_env_var WEBHOOK_ALERT_SECRET "$f")"
   printf '  %-30s %s\n' "WEBHOOK_ALERT_SECRET" "${v:-"(empty)"}"
@@ -199,7 +230,7 @@ Usage:
 
 Environment (each defaults to 1 = run; set to 0 to skip):
   COPY_ENV         Copy .env.example → .env when .env is missing
-  GENERATE_SECRETS After creating .env, fill JWT / DB / Redis / webhook / admin & RBAC seed passwords (openssl rand). Set to 0 to keep placeholders.
+  GENERATE_SECRETS After creating .env, fill JWT / DB / Redis / webhook / admin & RBAC seed / MinIO root / Grafana admin (openssl rand). If BASE_DOMAIN is set, also fills MinIO hostnames and HTTPS URLs. Set to 0 to keep placeholders.
   RUN_MIGRATE      `prisma migrate deploy` (needs DATABASE_URL reachable)
   RUN_SEED         `prisma db seed`
   RUN_BUILD        `pnpm build` (turbo)

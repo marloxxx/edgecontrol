@@ -9,6 +9,9 @@ services:
       - "--api.insecure=false"
       - "--providers.file.filename=/etc/traefik/dynamic.yml"
       - "--providers.file.watch=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
@@ -21,6 +24,7 @@ services:
     volumes:
       - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml
       - letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - public
       - internal
@@ -115,6 +119,87 @@ services:
     networks:
       - internal
 
+  # S3-compatible API (:9000) and console (:9001). Keep replicas at 1 for this
+  # single-node layout; use Swarm/Kubernetes for horizontal MinIO clusters.
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      # Public HTTPS URLs (must match Traefik Host rules below; required for console + S3 signing behind TLS)
+      MINIO_SERVER_URL: ${MINIO_SERVER_URL:?Set MINIO_SERVER_URL e.g. https://s3.example.com}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL:?Set MINIO_BROWSER_REDIRECT_URL e.g. https://minio.example.com}
+    volumes:
+      - minio_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
+      - "traefik.http.routers.minio-s3.rule=Host(`${MINIO_S3_DOMAIN}`)"
+      - "traefik.http.routers.minio-s3.entrypoints=websecure"
+      - "traefik.http.routers.minio-s3.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-s3.service=minio-s3"
+      - "traefik.http.services.minio-s3.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_DOMAIN}`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:9000/minio/health/live",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    deploy:
+      mode: replicated
+      replicas: 1
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+      rollback_config:
+        parallelism: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  minio-init:
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$${MINIO_BUCKET:-edgecontrol}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      MINIO_BUCKET: ${MINIO_BUCKET:-edgecontrol}
+    networks:
+      - internal
+    restart: "no"
+
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: edgecontrol-prometheus
@@ -158,6 +243,7 @@ volumes:
   letsencrypt:
   prometheus_data:
   grafana_data:
+  minio_data:
 
 networks:
   public:

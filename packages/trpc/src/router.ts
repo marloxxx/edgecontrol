@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { Permission, hasPermission } from './permissions'
 import {
+  createNodeSchema,
   createServiceSchema,
   updateServiceSchema
 } from './types'
@@ -57,6 +58,10 @@ export interface AppRouterDeps {
   overview: {
     summary: (actor: RouterUser) => Promise<any>
   }
+  node: {
+    list: (actor: RouterUser) => Promise<any[]>
+    create: (input: z.infer<typeof createNodeSchema>, actor: RouterUser) => Promise<any>
+  }
 }
 
 const t = initTRPC.context<RouterContext>().create()
@@ -97,6 +102,12 @@ export function createAppRouter(deps: AppRouterDeps) {
     }),
     overview: t.router({
       summary: permissionProcedure(Permission.VIEW_DASHBOARD).query(({ ctx }) => deps.overview.summary(ctx.user))
+    }),
+    node: t.router({
+      list: permissionProcedure(Permission.VIEW_SERVICES).query(({ ctx }) => deps.node.list(ctx.user)),
+      create: permissionProcedure(Permission.MANAGE_NODES)
+        .input(createNodeSchema)
+        .mutation(({ input, ctx }) => deps.node.create(input, ctx.user))
     }),
     service: t.router({
       list: permissionProcedure(Permission.VIEW_SERVICES).query(({ ctx }) => deps.service.list(ctx.user)),

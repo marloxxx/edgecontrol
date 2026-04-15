@@ -16,6 +16,7 @@ import { HistoryPage } from '@/src/features/history'
 import { MonitoringPage } from '@/src/features/monitoring'
 import { OverviewPage } from '@/src/features/overview'
 import { RoutesPage } from '@/src/features/routes'
+import { NodesPage } from '@/src/features/nodes'
 import { ServiceDetailPage, ServicesPage } from '@/src/features/services'
 import { SettingsPage } from '@/src/features/settings'
 import { UsersPage } from '@/src/features/users'
@@ -86,6 +87,12 @@ const servicesRoute = createRoute({
   component: ServicesPage
 })
 
+const nodesRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'nodes',
+  component: NodesPage
+})
+
 const serviceDetailRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: 'services/$id',
@@ -140,6 +147,7 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     overviewRoute,
     servicesRoute,
+    nodesRoute,
     serviceDetailRoute,
     routesRoute,
     monitoringRoute,

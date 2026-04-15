@@ -1,31 +1,36 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { AuditAction } from '@edgecontrol/db'
 import type { CreateServiceInput, UpdateServiceInput } from '@edgecontrol/trpc'
 
 import { AuthenticatedUser } from '../../auth/auth.types'
+import { PrometheusTargetsService } from '../../infra/prometheus/prometheus-targets.service'
 import { AuditService } from '../audit/audit.service'
 import { AccessControlService } from '../access/access-control.service'
 import { PrismaService } from '../../prisma/prisma.service'
 
 @Injectable()
 export class ServiceService {
+  private readonly logger = new Logger(ServiceService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    private readonly accessControlService: AccessControlService
+    private readonly accessControlService: AccessControlService,
+    private readonly prometheusTargets: PrometheusTargetsService
   ) {}
 
   async list(actor: AuthenticatedUser) {
     const where = await this.accessControlService.getAccessibleServiceWhere(actor)
     return this.prisma.service.findMany({
       where,
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: { node: true }
     })
   }
 
   async getById(id: string, actor: AuthenticatedUser) {
     await this.accessControlService.assertCanViewService(actor, id)
-    return this.prisma.service.findUnique({ where: { id } })
+    return this.prisma.service.findUnique({ where: { id }, include: { node: true } })
   }
 
   async create(input: CreateServiceInput, actor: AuthenticatedUser) {
@@ -45,6 +50,8 @@ export class ServiceService {
       target: `service:${service.name}`,
       newValue: service as unknown as Record<string, unknown>
     })
+
+    await this.syncPrometheusFileSd()
 
     return service
   }
@@ -75,6 +82,8 @@ export class ServiceService {
       newValue: service as unknown as Record<string, unknown>
     })
 
+    await this.syncPrometheusFileSd()
+
     return service
   }
 
@@ -93,6 +102,8 @@ export class ServiceService {
       target: `service:${existing.name}`,
       oldValue: existing as unknown as Record<string, unknown>
     })
+
+    await this.syncPrometheusFileSd()
 
     return { success: true }
   }
@@ -117,7 +128,19 @@ export class ServiceService {
       newValue: { enabled: service.enabled }
     })
 
+    await this.syncPrometheusFileSd()
+
     return service
+  }
+
+  private async syncPrometheusFileSd(): Promise<void> {
+    try {
+      await this.prometheusTargets.syncFromServices()
+    } catch (err) {
+      this.logger.warn(
+        `Prometheus file_sd sync failed: ${err instanceof Error ? err.message : String(err)}`
+      )
+    }
   }
 
   async setWeight(id: string, weight: number, actor: AuthenticatedUser) {

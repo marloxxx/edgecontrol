@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Permission } from '@edgecontrol/trpc'
-import { LayoutDashboard, Server, GitFork, Activity, Bell, History, Users, Settings, LogOut, Menu } from 'lucide-react'
+import { LayoutDashboard, Server, GitFork, Activity, Bell, History, Users, Settings, LogOut, Menu, HardDrive } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { PermissionGate } from './PermissionGate'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ export function Sidebar() {
   const navItems = [
     { href: '/overview', label: 'Overview', icon: LayoutDashboard, permission: Permission.VIEW_DASHBOARD },
     { href: '/services', label: 'Services', icon: Server, permission: Permission.VIEW_SERVICES },
+    { href: '/nodes', label: 'Nodes', icon: HardDrive, permission: Permission.VIEW_SERVICES },
     { href: '/routes', label: 'Routes', icon: GitFork, permission: Permission.VIEW_SERVICES },
     { href: '/monitoring', label: 'Monitoring', icon: Activity, permission: Permission.VIEW_MONITORING },
     { href: '/alerts', label: 'Alerts', icon: Bell, permission: Permission.VIEW_ALERTS, badge: openAlerts },

@@ -209,6 +209,7 @@ export function OverviewPage() {
                 <TableBody>
                   {services.slice(0, 8).map((service) => {
                     const latest = health.find((value) => value.serviceId === service.id)
+                    const node = (service as { node?: { name: string } | null }).node
                     return (
                     <TableRow key={service.id} className="border-border hover:bg-slate-900/50">
                       <TableCell>
@@ -228,7 +229,11 @@ export function OverviewPage() {
                       <TableCell className="text-sm">-</TableCell>
                       <TableCell className="text-sm">{latest?.latencyMs ?? 0}ms</TableCell>
                       <TableCell>
-                        <VpsNodeTag node={service.targetHost} />
+                        {node ? (
+                          <VpsNodeTag label={node.name} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                     )

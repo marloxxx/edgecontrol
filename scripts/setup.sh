@@ -16,6 +16,7 @@ RUN_BUILD="${RUN_BUILD:-1}"
 RUN_TEST="${RUN_TEST:-1}"
 DOCKER_PREP="${DOCKER_PREP:-1}"
 INSTALL_DOCKER="${INSTALL_DOCKER:-1}"
+SHOW_CREDENTIALS="${SHOW_CREDENTIALS:-1}"
 
 log() { printf '\033[0;32m[%s]\033[0m %s\n' "$(date '+%H:%M:%S')" "$*"; }
 warn() { printf '\033[0;33m[%s]\033[0m %s\n' "$(date '+%H:%M:%S')" "$*" >&2; }
@@ -98,6 +99,94 @@ apply_generated_secrets() {
   replace_env_line DATABASE_URL "postgresql://admin:${dbpw}@db:5432/edgecontrol" "$f"
   # Default compose stack uses Redis without ACL; password is stored for production / custom compose.
   replace_env_line REDIS_URL "redis://redis:6379" "$f"
+  replace_env_line GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)" "$f"
+}
+
+# Read a single KEY=value from .env (first match; value may contain =).
+read_env_var() {
+  local key="$1" file="$2" line
+  if [[ ! -f "$file" ]]; then
+    echo ""
+    return
+  fi
+  line="$(grep -E "^${key}=" "$file" 2>/dev/null | head -1 || true)"
+  if [[ -z "$line" ]]; then
+    echo ""
+    return
+  fi
+  printf '%s' "${line#${key}=}"
+}
+
+# Print credential-related values from .env (stdout — redirect if you need a file).
+print_credentials_summary() {
+  local f="$1"
+  if [[ ! -f "$f" ]]; then
+    return
+  fi
+  local v
+  printf '\n'
+  printf '%s\n' "═══════════════════════════════════════════════════════════════════"
+  printf '%s\n' "  Edgecontrol — VPS 1 role: public Traefik / edge (see README & compose)"
+  printf '%s\n' "  Credentials from: $f"
+  printf '%s\n' "  Treat as secret. Do not commit .env or paste into public channels."
+  printf '%s\n' "═══════════════════════════════════════════════════════════════════"
+  printf '\n%s\n' "Core"
+  v="$(read_env_var NODE_ENV "$f")"
+  printf '  %-30s %s\n' "NODE_ENV" "${v:-"(not set)"}"
+  v="$(read_env_var API_PORT "$f")"
+  printf '  %-30s %s\n' "API_PORT" "${v:-"(not set)"}"
+  v="$(read_env_var JWT_SECRET "$f")"
+  printf '  %-30s %s\n' "JWT_SECRET" "${v:-"(empty)"}"
+  v="$(read_env_var CORS_ORIGIN "$f")"
+  printf '  %-30s %s\n' "CORS_ORIGIN" "${v:-"(not set)"}"
+  printf '\n%s\n' "Database & Redis"
+  v="$(read_env_var DB_PASSWORD "$f")"
+  printf '  %-30s %s\n' "DB_PASSWORD" "${v:-"(empty)"}"
+  v="$(read_env_var DATABASE_URL "$f")"
+  printf '  %-30s %s\n' "DATABASE_URL" "${v:-"(empty)"}"
+  v="$(read_env_var REDIS_PASSWORD "$f")"
+  printf '  %-30s %s\n' "REDIS_PASSWORD" "${v:-"(empty)"}"
+  v="$(read_env_var REDIS_URL "$f")"
+  printf '  %-30s %s\n' "REDIS_URL" "${v:-"(empty)"}"
+  printf '\n%s\n' "Traefik / TLS (VPS 1)"
+  v="$(read_env_var ACME_EMAIL "$f")"
+  printf '  %-30s %s\n' "ACME_EMAIL" "${v:-"(empty)"}"
+  printf '\n%s\n' "Webhooks & integrations"
+  v="$(read_env_var WEBHOOK_ALERT_SECRET "$f")"
+  printf '  %-30s %s\n' "WEBHOOK_ALERT_SECRET" "${v:-"(empty)"}"
+  v="$(read_env_var TELEGRAM_BOT_TOKEN "$f")"
+  printf '  %-30s %s\n' "TELEGRAM_BOT_TOKEN" "${v:-"(empty)"}"
+  v="$(read_env_var TELEGRAM_CHAT_ID "$f")"
+  printf '  %-30s %s\n' "TELEGRAM_CHAT_ID" "${v:-"(empty)"}"
+  printf '\n%s\n' "Admin & RBAC seed (UI / API users)"
+  v="$(read_env_var ADMIN_EMAIL "$f")"
+  printf '  %-30s %s\n' "ADMIN_EMAIL" "${v:-"(empty)"}"
+  v="$(read_env_var ADMIN_PASSWORD "$f")"
+  printf '  %-30s %s\n' "ADMIN_PASSWORD" "${v:-"(empty)"}"
+  v="$(read_env_var RBAC_SEED_PASSWORD "$f")"
+  printf '  %-30s %s\n' "RBAC_SEED_PASSWORD" "${v:-"(empty)"}"
+  v="$(read_env_var RBAC_SUPER_ADMIN_EMAIL "$f")"
+  printf '  %-30s %s\n' "RBAC_SUPER_ADMIN_EMAIL" "${v:-"(empty)"}"
+  v="$(read_env_var RBAC_ADMIN_EMAIL "$f")"
+  printf '  %-30s %s\n' "RBAC_ADMIN_EMAIL" "${v:-"(empty)"}"
+  v="$(read_env_var RBAC_DEVELOPER_EMAIL "$f")"
+  printf '  %-30s %s\n' "RBAC_DEVELOPER_EMAIL" "${v:-"(empty)"}"
+  v="$(read_env_var RBAC_VIEWER_EMAIL "$f")"
+  printf '  %-30s %s\n' "RBAC_VIEWER_EMAIL" "${v:-"(empty)"}"
+  printf '\n%s\n' "Grafana (observability UI — docker compose port 3010)"
+  v="$(read_env_var GRAFANA_ADMIN_USER "$f")"
+  printf '  %-30s %s\n' "GRAFANA_ADMIN_USER" "${v:-"(empty)"}"
+  v="$(read_env_var GRAFANA_ADMIN_PASSWORD "$f")"
+  printf '  %-30s %s\n' "GRAFANA_ADMIN_PASSWORD" "${v:-"(empty)"}"
+  v="$(read_env_var GRAFANA_ROOT_URL "$f")"
+  printf '  %-30s %s\n' "GRAFANA_ROOT_URL" "${v:-"(empty)"}"
+  printf '\n%s\n' "Other"
+  v="$(read_env_var TRAEFIK_DYNAMIC_CONFIG_PATH "$f")"
+  printf '  %-30s %s\n' "TRAEFIK_DYNAMIC_CONFIG_PATH" "${v:-"(not set)"}"
+  v="$(read_env_var HEALTH_CHECK_INTERVAL_MS "$f")"
+  printf '  %-30s %s\n' "HEALTH_CHECK_INTERVAL_MS" "${v:-"(not set)"}"
+  printf '\n%s\n' "═══════════════════════════════════════════════════════════════════"
+  printf '%s\n\n' "  Tip: capture this output with: ./scripts/setup.sh 2>&1 | tee setup-credentials.log"
 }
 
 usage() {
@@ -117,6 +206,7 @@ Environment (each defaults to 1 = run; set to 0 to skip):
   RUN_TEST         `pnpm test` (turbo)
   DOCKER_PREP      Create Docker network `public` if missing (for docker-compose.yml)
   INSTALL_DOCKER   If Docker CLI is missing and DOCKER_PREP=1, attempt install (macOS: brew; Linux: get.docker.com). Default 1; set 0 to skip.
+  SHOW_CREDENTIALS After setup, print all credential-related values from .env (VPS 1 / Traefik context). Default 1; set 0 to skip (e.g. CI logs).
 
 Examples:
   docker compose up -d db redis    # then ./scripts/setup.sh with a DATABASE_URL that points at Postgres
@@ -242,6 +332,12 @@ fi
 # --- Done -------------------------------------------------------------------
 
 log "Setup finished."
+
+if [[ "${SHOW_CREDENTIALS}" == "1" ]] && [[ -f "$ENV_FILE" ]]; then
+  print_credentials_summary "$ENV_FILE"
+elif [[ "${SHOW_CREDENTIALS}" == "1" ]] && [[ ! -f "$ENV_FILE" ]]; then
+  warn "No $ENV_FILE — cannot print credentials summary."
+fi
 
 cat <<'EOF'
 

@@ -127,10 +127,14 @@ target:
   port: ${service.targetPort}
 protocol: ${service.protocol}
 type: ${service.type}
-${service.nodeId ? `node_id: ${service.nodeId}` : ''}
+${(service as { node?: { name: string } | null }).node ? `node: ${(service as { node: { name: string } }).node.name}` : ''}
 health_check:
   path: ${service.healthPath}
 enabled: ${service.enabled}
+metrics:
+  enabled: ${(service as { metricsEnabled?: boolean }).metricsEnabled ?? false}
+  path: ${(service as { metricsPath?: string }).metricsPath ?? '/metrics'}
+  port: ${(service as { metricsPort?: number | null }).metricsPort ?? 'same as target'}
 ${service.rateLimitAvg != null && service.rateLimitBurst != null ? `rate_limit:\n  avg: ${service.rateLimitAvg}\n  burst: ${service.rateLimitBurst}` : ''}
 circuit_breaker:
   enabled: ${service.circuitBreakerEnabled}
@@ -145,7 +149,7 @@ circuit_breaker:
             <div className="flex items-center gap-3 mt-3 flex-wrap">
               <StatusBadge status={latestStatus} animate />
               <ServiceTypeTag type={service.type} />
-              {service.nodeId ? <VpsNodeTag node={service.nodeId} /> : null}
+              {service.node ? <VpsNodeTag label={service.node.name} /> : null}
             </div>
           </div>
           <div className="flex gap-2">

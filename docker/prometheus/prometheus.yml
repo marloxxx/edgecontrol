@@ -1,0 +1,21 @@
+# Prometheus scrape configuration for Edgecontrol (Docker Compose).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: edgecontrol-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:3000"]
+
+  # Targets written by the API from services with "metrics" enabled (file_sd JSON).
+  - job_name: edgecontrol-services
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/file_sd/edgecontrol-services.json
+        refresh_interval: 30s

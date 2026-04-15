@@ -18,7 +18,7 @@ export const serviceSchema = z.object({
   type: serviceTypeSchema.default('api'),
   enabled: z.boolean(),
   weight: z.number().int().min(0).max(100),
-  healthPath: z.string().default('/health'),
+  healthPath: z.string().default('/api/health'),
   rateLimitAvg: z.number().int().nullable(),
   rateLimitBurst: z.number().int().nullable(),
   circuitBreakerEnabled: z.boolean(),
@@ -27,6 +27,9 @@ export const serviceSchema = z.object({
   tags: z.array(z.string()),
   notes: z.string().nullable(),
   nodeId: z.string().nullable().optional(),
+  metricsEnabled: z.boolean().default(false),
+  metricsPath: z.string().default('/metrics'),
+  metricsPort: z.number().int().positive().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string()
 })
@@ -97,3 +100,21 @@ export type AlertDto = z.infer<typeof alertSchema>
 export type RouteVersionDto = z.infer<typeof routeVersionSchema>
 export type AuditLogDto = z.infer<typeof auditLogSchema>
 export type DashboardSummaryDto = z.infer<typeof dashboardSummarySchema>
+
+export const nodeSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  host: z.string(),
+  region: z.string().nullable(),
+  isActive: z.boolean(),
+  createdAt: z.string()
+})
+
+export const createNodeSchema = z.object({
+  name: z.string().min(1).max(128),
+  host: z.string().min(1).max(512),
+  region: z.string().max(64).nullable().optional()
+})
+
+export type NodeDto = z.infer<typeof nodeSchema>
+export type CreateNodeInput = z.infer<typeof createNodeSchema>

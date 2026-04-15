@@ -70,7 +70,7 @@ model Service {
   type                  String    @default("api")
   enabled               Boolean   @default(true)
   weight                Int       @default(100)
-  healthPath            String    @default("/health")
+  healthPath            String    @default("/api/health")
   rateLimitAvg          Int?
   rateLimitBurst        Int?
   circuitBreakerEnabled Boolean   @default(false)
@@ -79,6 +79,11 @@ model Service {
   tags                  String[]
   notes                 String?
   nodeId                String?
+  /** When true, Prometheus file_sd includes this service (must be reachable from Prometheus on target host:port). */
+  metricsEnabled        Boolean   @default(false)
+  metricsPath           String    @default("/metrics")
+  /** If null, uses targetPort for scraping. */
+  metricsPort           Int?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   fallbackFor           Service[] @relation("FallbackService")

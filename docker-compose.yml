@@ -43,8 +43,11 @@ services:
       LATENCY_WARN_MS: ${LATENCY_WARN_MS:-800}
       LATENCY_CRIT_MS: ${LATENCY_CRIT_MS:-2000}
       MAX_CONSECUTIVE_FAILURES: ${MAX_CONSECUTIVE_FAILURES:-3}
+      PROMETHEUS_FILE_SD_PATH: /prometheus-sd/edgecontrol-services.json
+      PROMETHEUS_RELOAD_URL: http://prometheus:9090/-/reload
     volumes:
       - ./docker/traefik:/traefik-config
+      - ./docker/prometheus/file_sd:/prometheus-sd
     depends_on:
       - db
       - redis
@@ -112,9 +115,49 @@ services:
     networks:
       - internal
 
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: edgecontrol-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/file_sd:/etc/prometheus/file_sd:ro
+      - prometheus_data:/prometheus
+    networks:
+      - internal
+    ports:
+      - "9090:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: edgecontrol-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3010}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/etc/grafana/dashboards:ro
+    networks:
+      - internal
+    ports:
+      - "3010:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   pgdata:
   letsencrypt:
+  prometheus_data:
+  grafana_data:
 
 networks:
   public:

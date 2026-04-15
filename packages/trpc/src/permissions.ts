@@ -21,7 +21,9 @@ export enum Permission {
   DELETE_USER = 'delete:user',
   MANAGE_ROLES = 'manage:roles',
   VIEW_SETTINGS = 'view:settings',
-  EDIT_SETTINGS = 'edit:settings'
+  EDIT_SETTINGS = 'edit:settings',
+  /** Register VPS / worker hosts for linking services (optional labelling). */
+  MANAGE_NODES = 'manage:nodes'
 }
 
 export const ROLES = ['SUPER_ADMIN', 'ADMIN', 'DEVELOPER', 'VIEWER'] as const
@@ -62,7 +64,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_ALERTS,
     Permission.MANAGE_ALERTS,
     Permission.VIEW_AUDIT_LOGS,
-    Permission.VIEW_SETTINGS
+    Permission.VIEW_SETTINGS,
+    Permission.MANAGE_NODES
   ],
   DEVELOPER: [
     Permission.VIEW_DASHBOARD,

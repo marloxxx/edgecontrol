@@ -25,6 +25,7 @@ export type Permission =
   | 'manage:roles'
   | 'view:settings'
   | 'edit:settings'
+  | 'manage:nodes'
 
 export type ServiceStatus = 'UP' | 'SLOW' | 'DOWN'
 export type AlertSeverity = 'CRITICAL' | 'WARNING' | 'INFO'

@@ -19,15 +19,31 @@
   --color-red-accent: #ef4444;
   --color-slate-muted: #64748b;
 
-  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
-  --font-sans: "Geist", "DM Sans", system-ui, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --font-sans: "Geist Sans", "DM Sans", system-ui, sans-serif;
 
   --radius-card: 0.5rem;
   --radius-badge: 0.25rem;
   --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
   --shadow-glow-cyan: 0 0 20px rgba(0, 212, 255, 0.15);
+
+  /* Chart palette — aligned with shadcn / frontend-adv dark tokens for Recharts */
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 }
 
 @layer base {

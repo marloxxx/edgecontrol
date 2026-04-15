@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: Edgecontrol
+    orgId: 1
+    folder: Edgecontrol
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards

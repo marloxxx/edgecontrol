@@ -9,6 +9,7 @@ import { AlertService } from '../modules/alert/alert.service'
 import { AuditService } from '../modules/audit/audit.service'
 import { HealthService } from '../modules/health/health.service'
 import { OpsService } from '../modules/ops/ops.service'
+import { NodeService } from '../modules/node/node.service'
 import { ServiceService } from '../modules/service/service.service'
 import { VersionService } from '../modules/version/version.service'
 
@@ -22,6 +23,7 @@ function toJsonDate<T>(record: T): T {
 
 export function buildAppRouter(app: INestApplication) {
   const serviceService = app.get(ServiceService)
+  const nodeService = app.get(NodeService)
   const healthService = app.get(HealthService)
   const alertService = app.get(AlertService)
   const auditService = app.get(AuditService)
@@ -33,6 +35,10 @@ export function buildAppRouter(app: INestApplication) {
     auth: {
       login: (email, password) => authService.login(email, password),
       me: (ctx) => authService.me(ctx)
+    },
+    node: {
+      list: async (actor: RouterUser) => toJsonDate(await nodeService.list(actor)),
+      create: async (input, actor) => toJsonDate(await nodeService.create(input, actor))
     },
     overview: {
       async summary(actor: RouterUser) {

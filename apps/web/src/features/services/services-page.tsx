@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRole } from '@/contexts/RoleContext'
 import { trpc } from '@/src/lib/trpc'
-import { DataTable, DeleteDialog, FormModal, ModuleHeader } from '@/src/components/shared'
+import { DataTable, DeleteDialog, ModuleHeader, ServiceFormModal } from '@/src/components/shared'
 import type { ColumnDef, RowAction } from '@/src/components/shared'
 
 export function ServicesPage() {
@@ -171,7 +171,13 @@ export function ServicesPage() {
         </Card>
       </div>
 
-      <FormModal open={isFormOpen} onOpenChange={setIsFormOpen} mode="create" />
+      <ServiceFormModal
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSuccess={async () => {
+          await serviceQuery.refetch()
+        }}
+      />
       <DeleteDialog
         open={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}

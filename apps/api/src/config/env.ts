@@ -21,7 +21,23 @@ const envSchema = z.object({
   LATENCY_CRIT_MS: z.coerce.number().int().positive().default(2000),
   MAX_CONSECUTIVE_FAILURES: z.coerce.number().int().positive().default(3),
   /** If set, POST /api/webhook/alert requires header X-Webhook-Secret with this value */
-  WEBHOOK_ALERT_SECRET: z.string().min(16).optional()
+  WEBHOOK_ALERT_SECRET: z.string().min(16).optional(),
+  /**
+   * When false (default), GET /metrics rejects requests that include X-Forwarded-For (typical when
+   * reached via Traefik), so Prometheus should scrape the app directly on the private network.
+   * Set true only for local debugging through the edge proxy.
+   */
+  METRICS_ALLOW_PUBLIC: z
+    .string()
+    .default('false')
+    .transform((s) => s === 'true'),
+  /** Prometheus file_sd JSON path (API writes; Prometheus reads the same host dir in Compose). */
+  PROMETHEUS_FILE_SD_PATH: z.string().optional(),
+  /** POST this URL after updating file_sd (e.g. http://prometheus:9090/-/reload). */
+  PROMETHEUS_RELOAD_URL: z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    z.string().url().optional()
+  )
 })
 
 export const env = envSchema.parse(process.env)

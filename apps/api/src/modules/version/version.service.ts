@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { AuditAction, Prisma } from '@edgecontrol/db'
 
 import { AuthenticatedUser } from '../../auth/auth.types'
+import { PrometheusTargetsService } from '../../infra/prometheus/prometheus-targets.service'
 import { TraefikService } from '../../infra/traefik/traefik.service'
 import { PrismaService } from '../../prisma/prisma.service'
 import { AccessControlService } from '../access/access-control.service'
@@ -12,6 +13,7 @@ export class VersionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly traefikService: TraefikService,
+    private readonly prometheusTargets: PrometheusTargetsService,
     private readonly auditService: AuditService,
     private readonly accessControlService: AccessControlService
   ) {}
@@ -62,6 +64,8 @@ export class VersionService {
       target: 'config:dynamic.yml',
       newValue: { versionId: version.id }
     })
+
+    await this.prometheusTargets.syncFromServices()
 
     return {
       success: true,

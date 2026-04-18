@@ -67,6 +67,7 @@ On a **Docker-only host** (no Node), use the deploy helper (runs Prisma inside t
 
 ```bash
 ./scripts/setup.sh db
+./scripts/setup.sh db reset   # DANGER: wipes the database and reapplies migrations (then run seed)
 ./scripts/setup.sh seed
 ```
 
@@ -167,7 +168,7 @@ docker/
   prometheus/   # Prometheus scrape config
   grafana/      # Grafana provisioning + dashboards
 scripts/
-  setup.sh      # Bootstrap (.env, secrets, network) + deploy: full, compose, db, seed, apps
+  setup.sh      # Bootstrap (.env, secrets, network) + deploy: full, compose, db, db reset, seed, reset, apps, clean
 ```
 
 ## Licensing

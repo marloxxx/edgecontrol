@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Edgecontrol — host bootstrap (no Node) + deploy via Docker only for stack commands.
-# `full` / `compose` / Docker `db|seed|reset`: Docker Engine + Compose (install attempted if missing when INSTALL_DOCKER=1).
+# `full` / `compose` / Docker `db|db reset|seed|reset`: Docker Engine + Compose (install attempted if missing when INSTALL_DOCKER=1).
 # API image: apps/api/Dockerfile. Prisma in containers: Compose `migrate` service (builder target).
 # Run from repo root: ./scripts/setup.sh   or   bash scripts/setup.sh
 
@@ -578,7 +578,8 @@ Deploy commands (stack = Docker only; no host pnpm):
   ./scripts/${ME} full      — .env + secrets if needed, docker compose up --build + Prisma migrate
   ./scripts/${ME} compose   — .env + secrets if needed, docker compose up -d --build
   ./scripts/${ME} db        — prisma migrate deploy (host pnpm if installed, else Docker migrate service)
-  ./scripts/${ME} reset     — prisma migrate reset --force (DANGER)
+  ./scripts/${ME} db reset  — prisma migrate reset --force (DANGER: drops all DB data, re-applies migrations)
+  ./scripts/${ME} reset     — same as db reset
   ./scripts/${ME} seed      — prisma db seed (host pnpm if installed, else Docker)
   ./scripts/${ME} apps      — pnpm install + pnpm build (requires pnpm)
 
@@ -673,7 +674,12 @@ main() {
       ;;
     db)
       shift || true
-      cmd_db "$@"
+      if [[ "${1:-}" == "reset" ]]; then
+        shift || true
+        cmd_reset "$@"
+      else
+        cmd_db "$@"
+      fi
       ;;
     reset)
       shift || true

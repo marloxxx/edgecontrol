@@ -112,10 +112,33 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d edgecontrol"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
     container_name: edgecontrol-redis
+    networks:
+      - internal
+
+  # Prisma one-offs — same context as API, `target: builder` (workspace + node_modules).
+  # Not started by default (`profiles`). Used by scripts/setup.sh (db|seed|full without host pnpm).
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: builder
+    profiles:
+      - migrate
+    environment:
+      DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - internal
 

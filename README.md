@@ -2,6 +2,8 @@
 
 Monorepo for a **Traefik-centric operations panel**: manage dynamic routing configuration, monitor service health, and enforce RBAC. The API (NestJS) writes Traefik’s `dynamic.yml`; a worker processes background jobs (BullMQ / Redis); the web app is built with Vite and React.
 
+On **Linux servers** it is usual to keep this checkout under **`/opt/stack`** or **`/opt/apps`** (for example `/opt/stack/edgecontrol`). Use that base consistently for Compose volumes, Traefik mounts, and systemd paths — see [Host checkout path (Linux)](#host-checkout-path-linux) under Docker Compose.
+
 ## Stack
 
 | Area | Technology |
@@ -15,40 +17,52 @@ Monorepo for a **Traefik-centric operations panel**: manage dynamic routing conf
 
 ## Requirements
 
-- **Node.js** 18+ (LTS 20 or 22 recommended)
-- **pnpm** 10.x — enable via Corepack:  
-  `corepack enable && corepack prepare pnpm@10.18.3 --activate`
+- **Docker** & **Docker Compose** — required for the full stack (`docker compose`); migrations/seed without host Node use the `migrate` service (see `./scripts/setup.sh help`)
 - **OpenSSL** — used by `scripts/setup.sh` to generate secrets
-- **Docker** & **Docker Compose** — optional; required for the full stack in Compose
+- **Node.js** 18+ and **pnpm** 10.x — for local development only (`pnpm dev`, Turbo). Corepack:  
+  `corepack enable && corepack prepare pnpm@10.18.3 --activate`
 
 ## Quick start
 
 ```bash
 git clone https://github.com/marloxxx/edgecontrol.git
 cd edgecontrol
-./scripts/setup.sh --help   # optional: see flags and env toggles
-./scripts/setup.sh
+./scripts/setup.sh help       # bootstrap + deploy commands
+./scripts/setup.sh            # .env + secrets + Docker network `public` (no Node)
+./scripts/setup.sh full       # compose + migrate (pnpm on host if installed, else Docker only)
 ```
 
-On first run the script can:
+On a server you might clone into **`/opt/stack`** or **`/opt/apps`** instead:
+
+```bash
+sudo mkdir -p /opt/stack && cd /opt/stack
+sudo git clone https://github.com/marloxxx/edgecontrol.git
+cd edgecontrol
+./scripts/setup.sh
+./scripts/setup.sh full
+```
+
+On first run `setup.sh` can:
 
 - Copy `.env.example` → `.env` and **generate secrets** (JWT, DB password, webhook secret, admin/RBAC seed password, and a concrete `DATABASE_URL`)
 - Create the external Docker network **`public`** (required by `docker-compose.yml`)
-- Install dependencies, run `prisma generate`, migrate, seed, build, and tests (all configurable; see script help)
 
 **Never commit `.env`.** Only `.env.example` is tracked.
 
-### Database not running yet?
+### Database migrations and seed
 
-```bash
-RUN_MIGRATE=0 RUN_SEED=0 ./scripts/setup.sh
-```
-
-Bring Postgres up (e.g. via Docker), then run migrations and seed:
+With **pnpm** on the host (typical laptop):
 
 ```bash
 pnpm --filter @edgecontrol/db prisma:migrate:deploy
 pnpm --filter @edgecontrol/db prisma:seed
+```
+
+On a **Docker-only host** (no Node), use the deploy helper (runs Prisma inside the `migrate` Compose service — same `builder` image as the API):
+
+```bash
+./scripts/setup.sh db
+./scripts/setup.sh seed
 ```
 
 ## Development
@@ -87,6 +101,15 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
    `docker compose up -d --build`
 
 Traefik reads `./docker/traefik/dynamic.yml` (the API updates route definitions at runtime). For HTTPS, set `ACME_EMAIL` and point DNS at the host.
+
+### Host checkout path (Linux)
+
+On servers it is common to keep the clone under **`/opt/stack`** or **`/opt/apps`**, for example:
+
+- `/opt/stack/edgecontrol` (or `/opt/stack/<repo-name>`)
+- `/opt/apps/edgecontrol` (or `/opt/apps/<repo-name>`)
+
+Use the same base path in Compose **volume mounts**, Traefik file-provider paths, backup jobs, and **systemd** `WorkingDirectory` / `ExecStart` so services resolve `./docker/...` and `.env` consistently.
 
 ### Topology: single host vs split VPS
 
@@ -129,7 +152,7 @@ docker/
   prometheus/   # Prometheus scrape config
   grafana/      # Grafana provisioning + dashboards
 scripts/
-  setup.sh      # Local bootstrap
+  setup.sh      # Bootstrap (.env, secrets, network) + deploy: full, compose, db, seed, apps
 ```
 
 ## Licensing

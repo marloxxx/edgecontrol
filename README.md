@@ -118,6 +118,10 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 
 Traefik reads `./docker/traefik/dynamic.yml` (the API writes managed routes there). The **panel**, **API**, and **MinIO** hostnames come from **`BASE_DOMAIN` in `.env`** by default (`api.<base>`, `panel.<base>`, `s3.<base>`, `minio.<base>`); optional overrides are `API_HOST`, `PANEL_HOST`, `PUBLIC_API_URL`, `MINIO_API_HOST`, `MINIO_CONSOLE_HOST`, and `CORS_ORIGIN` (see `docker-compose.yml`). Set `ACME_EMAIL` and point DNS at the host. MinIO is also on `127.0.0.1:9000` and `127.0.0.1:9001`.
 
+**Traefik shows “404 page not found” for every site:** routers are defined on **`websecure` (HTTPS) only**. Plain **`http://`** used to hit no router on port 80 → default 404. Compose now sets a **global redirect from `web` (:80) to `websecure` (:443)**. After `git pull`, recreate Traefik: `docker compose up -d --force-recreate traefik` (or `./scripts/setup.sh compose`). If **https://** still 404s, check the **Host** you open matches `.env` (`BASE_DOMAIN` / `API_HOST` / `PANEL_HOST` exactly as in DNS), and that `edgecontrol-api` / `edgecontrol-web` are healthy (`docker compose ps`).
+
+**Traefik logs `client version 1.24 is too old` / `Minimum supported API version is 1.40`:** the Traefik container’s Docker client API was too old for your Engine. This repo sets **`DOCKER_API_VERSION=1.47`** on the Traefik service (with **`traefik:v3.6`**); recreate the container. If your Engine is older and errors on the API version, lower `DOCKER_API_VERSION` (minimum **1.40**). On other stacks (e.g. Licentra), add the same under `traefik:` → `environment:` and remove any **`DOCKER_API_VERSION=1.24`** (or similar) from the host or `.env` if you had set it globally.
+
 ### Host checkout path (Linux)
 
 On servers it is common to keep the clone under **`/opt/stack`** or **`/opt/apps`**, for example:

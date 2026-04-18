@@ -1,16 +1,21 @@
 services:
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.6
     container_name: edgecontrol-traefik
+    environment:
+      # Newer Docker daemons require API >= 1.40; pin high enough for current Engine (lower if an older daemon rejects it).
+      DOCKER_API_VERSION: "1.47"
     command:
-      - "--api.dashboard=true"
-      - "--api.insecure=false"
+      - "--api.dashboard=false"
       - "--providers.file.filename=/etc/traefik/dynamic.yml"
       - "--providers.file.watch=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"

@@ -17,7 +17,7 @@ On **Linux servers** it is usual to keep this checkout under **`/opt/stack`** or
 
 ## Requirements
 
-- **Docker** & **Docker Compose** — required for the full stack (`docker compose`); migrations/seed without host Node use the `migrate` service (see `./scripts/setup.sh help`)
+- **Docker** & **Docker Compose** — required for the full stack (`docker compose`); migrations/seed without host Node use the `migrate` service (see `./scripts/setup.sh help`). With `INSTALL_DOCKER=1` (default), `./scripts/setup.sh` can install Docker when the CLI is missing (Linux: get.docker.com; macOS: Homebrew cask).
 - **OpenSSL** — used by `scripts/setup.sh` to generate secrets
 - **Node.js** 18+ and **pnpm** 10.x — for local development only (`pnpm dev`, Turbo). Corepack:  
   `corepack enable && corepack prepare pnpm@10.18.3 --activate`

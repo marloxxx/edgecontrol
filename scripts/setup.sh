@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Edgecontrol — one script: host bootstrap (no Node), or deploy (compose / Prisma / turbo).
-# API image: apps/api/Dockerfile (pnpm install, prisma generate, build). Prisma without host
-# pnpm uses the Compose `migrate` service (builder target).
+# Edgecontrol — host bootstrap (no Node) + deploy via Docker only for stack commands.
+# `full` / `compose` / Docker `db|seed|reset`: Docker Engine + Compose (install attempted if missing when INSTALL_DOCKER=1).
+# API image: apps/api/Dockerfile. Prisma in containers: Compose `migrate` service (builder target).
 # Run from repo root: ./scripts/setup.sh   or   bash scripts/setup.sh
 
 set -euo pipefail
@@ -28,7 +28,17 @@ ensure_docker_on_path() {
 
 require_docker_cli() {
   ensure_docker_on_path
-  command -v docker >/dev/null 2>&1 || die "Docker CLI not found. Install Docker Engine: https://docs.docker.com/engine/install/"
+  if ! command -v docker >/dev/null 2>&1; then
+    if [[ "${INSTALL_DOCKER:-1}" == "1" ]]; then
+      log "Docker CLI not found; attempting install (set INSTALL_DOCKER=0 to skip)..."
+      try_install_docker
+      ensure_docker_on_path
+    fi
+    command -v docker >/dev/null 2>&1 || die "Docker CLI not found. Install Docker Engine: https://docs.docker.com/engine/install/"
+  fi
+  if ! docker info >/dev/null 2>&1; then
+    die "Docker is installed but the daemon is not reachable (docker info failed). Linux: systemctl start docker && systemctl enable docker. macOS: open Docker Desktop and wait until it is running."
+  fi
 }
 
 install_docker_darwin() {
@@ -263,39 +273,33 @@ cmd_compose() {
 
 cmd_db() {
   require_env_file
-  ensure_docker_on_path
   if command -v pnpm >/dev/null 2>&1; then
     (cd "$ROOT" && pnpm --filter @edgecontrol/db prisma:migrate:deploy)
-  elif command -v docker >/dev/null 2>&1; then
-    migrate_via_docker
   else
-    die "install Docker Engine, or pnpm for host migrations"
+    require_docker_cli
+    migrate_via_docker
   fi
   echo "Database migrations applied."
 }
 
 cmd_reset() {
   require_env_file
-  ensure_docker_on_path
   if command -v pnpm >/dev/null 2>&1; then
     (cd "$ROOT" && pnpm --filter @edgecontrol/db exec prisma migrate reset --force)
-  elif command -v docker >/dev/null 2>&1; then
-    reset_via_docker
   else
-    die "install Docker Engine, or pnpm for host reset"
+    require_docker_cli
+    reset_via_docker
   fi
   echo "Database reset completed."
 }
 
 cmd_seed() {
   require_env_file
-  ensure_docker_on_path
   if command -v pnpm >/dev/null 2>&1; then
     (cd "$ROOT" && pnpm --filter @edgecontrol/db prisma:seed)
-  elif command -v docker >/dev/null 2>&1; then
-    seed_via_docker
   else
-    die "install Docker Engine, or pnpm for host seed"
+    require_docker_cli
+    seed_via_docker
   fi
   echo "Database seed completed."
 }
@@ -334,13 +338,14 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
 
   Environment (defaults 1 = on; set to 0 to skip):
     COPY_ENV, GENERATE_SECRETS, DOCKER_PREP, INSTALL_DOCKER, SHOW_CREDENTIALS
+    INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).
 
-Deploy commands:
-  ./scripts/${ME} full      — docker compose up --build + Prisma migrate (no host pnpm)
+Deploy commands (stack = Docker only; no host pnpm):
+  ./scripts/${ME} full      — docker compose up --build + Prisma migrate
   ./scripts/${ME} compose   — docker compose up -d --build
-  ./scripts/${ME} db        — prisma migrate deploy (pnpm or Docker migrate service)
+  ./scripts/${ME} db        — prisma migrate deploy (host pnpm if installed, else Docker migrate service)
   ./scripts/${ME} reset     — prisma migrate reset --force (DANGER)
-  ./scripts/${ME} seed      — prisma db seed (pnpm or Docker)
+  ./scripts/${ME} seed      — prisma db seed (host pnpm if installed, else Docker)
   ./scripts/${ME} apps      — pnpm install + pnpm build (requires pnpm)
 
   ./scripts/${ME} help      — this text
@@ -383,6 +388,7 @@ cmd_bootstrap() {
     if ! command -v docker >/dev/null 2>&1; then
       if [[ "$INSTALL_DOCKER" == "1" ]]; then
         try_install_docker
+        ensure_docker_on_path
       else
         warn "DOCKER_PREP is on but docker not found — skipping network creation (INSTALL_DOCKER=0)."
       fi

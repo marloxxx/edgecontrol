@@ -24,17 +24,17 @@ export class TraefikService {
   private readonly configPath = env.TRAEFIK_DYNAMIC_CONFIG_PATH
 
   buildConfig(routes: RouteConfig[]) {
+    const middlewares: Record<string, unknown> = {}
     const config: {
       http: {
         routers: Record<string, unknown>
         services: Record<string, unknown>
-        middlewares: Record<string, unknown>
+        middlewares?: Record<string, unknown>
       }
     } = {
       http: {
         routers: {},
-        services: {},
-        middlewares: {}
+        services: {}
       }
     }
 
@@ -42,13 +42,41 @@ export class TraefikService {
       const key = route.domain.replace(/\./g, '-').replace(/[^a-zA-Z0-9-]/g, '')
       const middlewareNames: string[] = []
 
-      config.http.routers[key] = {
+      if (route.rateLimitAvg && route.rateLimitBurst) {
+        const name = `${key}-ratelimit`
+        middlewares[name] = {
+          rateLimit: {
+            average: route.rateLimitAvg,
+            burst: route.rateLimitBurst
+          }
+        }
+        middlewareNames.push(name)
+      }
+
+      if (route.circuitBreakerEnabled) {
+        const expression =
+          route.circuitBreakerStatus === 'OPEN'
+            ? 'NetworkErrorRatio() > 0.0'
+            : 'ResponseCodeRatio(500, 600, 0, 600) > 0.30'
+        const name = `${key}-cb`
+        middlewares[name] = {
+          circuitBreaker: {
+            expression
+          }
+        }
+        middlewareNames.push(name)
+      }
+
+      const router: Record<string, unknown> = {
         rule: `Host(\`${route.domain}\`)`,
         service: key,
         entryPoints: ['websecure'],
-        tls: { certResolver: 'letsencrypt' },
-        middlewares: middlewareNames
+        tls: { certResolver: 'letsencrypt' }
       }
+      if (middlewareNames.length > 0) {
+        router.middlewares = middlewareNames
+      }
+      config.http.routers[key] = router
 
       config.http.services[key] = {
         loadBalancer: {
@@ -65,31 +93,10 @@ export class TraefikService {
           }
         }
       }
+    }
 
-      if (route.rateLimitAvg && route.rateLimitBurst) {
-        const name = `${key}-ratelimit`
-        config.http.middlewares[name] = {
-          rateLimit: {
-            average: route.rateLimitAvg,
-            burst: route.rateLimitBurst
-          }
-        }
-        middlewareNames.push(name)
-      }
-
-      if (route.circuitBreakerEnabled) {
-        const expression =
-          route.circuitBreakerStatus === 'OPEN'
-            ? 'NetworkErrorRatio() > 0.0'
-            : 'ResponseCodeRatio(500, 600, 0, 600) > 0.30'
-        const name = `${key}-cb`
-        config.http.middlewares[name] = {
-          circuitBreaker: {
-            expression
-          }
-        }
-        middlewareNames.push(name)
-      }
+    if (Object.keys(middlewares).length > 0) {
+      config.http.middlewares = middlewares
     }
 
     return config

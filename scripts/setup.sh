@@ -238,6 +238,15 @@ require_pnpm() {
   command -v pnpm >/dev/null 2>&1 || die "pnpm is required for ./scripts/${ME} apps (install via Corepack). For stack + DB use ./scripts/${ME} full|compose|db|seed — Docker only, no host pnpm."
 }
 
+# Traefik and peers attach to external network `public` (see docker-compose.yml).
+ensure_public_network() {
+  if docker network inspect public >/dev/null 2>&1; then
+    return 0
+  fi
+  log "Creating external Docker network 'public' (required by docker-compose.yml)"
+  docker network create public
+}
+
 compose_migrate_profile() {
   require_docker_cli
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env --profile migrate "$@")
@@ -267,6 +276,7 @@ seed_via_docker() {
 cmd_compose() {
   require_docker_cli
   require_env_file
+  ensure_public_network
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build "$@")
   echo "Stack started. See docker-compose.yml for services and Traefik labels."
 }
@@ -315,6 +325,7 @@ cmd_apps() {
 cmd_full() {
   require_docker_cli
   require_env_file
+  ensure_public_network
   echo "=== Edgecontrol full deploy (Docker — $ROOT) ==="
 
   echo ">>> Building images and starting containers..."

@@ -95,10 +95,8 @@ pnpm --filter @edgecontrol/db prisma:migrate:dev
 The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redis, **Prometheus**, and **Grafana** on a single host.
 
 1. Ensure `.env` exists and is filled (run `./scripts/setup.sh` once, or copy from `.env.example`).
-2. Create the external network once (the setup script can do this when `DOCKER_PREP=1`):  
-   `docker network create public`
-3. Start everything:  
-   `docker compose up -d --build`
+2. External network **`public`**: `./scripts/setup.sh full` or `./scripts/setup.sh compose` creates it if missing (bootstrap with `DOCKER_PREP=1` does the same). Or once manually: `docker network create public`.
+3. Start everything: `./scripts/setup.sh full` or `docker compose up -d --build`
 
 Traefik reads `./docker/traefik/dynamic.yml` (the API updates route definitions at runtime). For HTTPS, set `ACME_EMAIL` and point DNS at the host.
 

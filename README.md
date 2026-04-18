@@ -29,7 +29,7 @@ git clone https://github.com/marloxxx/edgecontrol.git
 cd edgecontrol
 ./scripts/setup.sh help       # bootstrap + deploy commands
 ./scripts/setup.sh            # .env + secrets + Docker network `public` (no Node)
-./scripts/setup.sh full       # compose + migrate (Docker only; no host pnpm)
+./scripts/setup.sh full       # .env + secrets if needed, then compose + migrate (Docker only; no host pnpm)
 ```
 
 On a server you might clone into **`/opt/stack`** or **`/opt/apps`** instead:
@@ -42,10 +42,13 @@ cd edgecontrol
 ./scripts/setup.sh full
 ```
 
-On first run `setup.sh` can:
+On first run `setup.sh` (or **`setup.sh full` / `compose`**) can:
 
-- Copy `.env.example` → `.env` and **generate secrets** (JWT, DB password, webhook secret, admin/RBAC seed password, and a concrete `DATABASE_URL`)
-- Create the external Docker network **`public`** (required by `docker-compose.yml`)
+- Copy `.env.example` → `.env` if it is missing, and **generate secrets** with OpenSSL (JWT, DB password, webhook secret, admin/RBAC seed password, Grafana/MinIO defaults, and a concrete `DATABASE_URL`)
+- If `.env` already exists, **only fill** empty, short JWT, or obvious `ChangeMe*` / example placeholders — strong values you set are not rotated
+- Optional: `export EDGE_BASE_DOMAIN=your.panel.host` before `full` / `compose` / `bootstrap` to replace `BASE_DOMAIN=example.com`; **ACME_EMAIL** is then set to `admin@<BASE_DOMAIN>` when it is still the example `admin@domain.com`
+- **Telegram** tokens are never generated (they must come from BotFather). **RBAC / admin emails** stay as in `.env` unless you change them
+- Create the external Docker network **`public`** (required by `docker-compose.yml`; `full` / `compose` do this automatically)
 
 **Never commit `.env`.** Only `.env.example` is tracked.
 
@@ -97,6 +100,18 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 1. Ensure `.env` exists and is filled (run `./scripts/setup.sh` once, or copy from `.env.example`).
 2. External network **`public`**: `./scripts/setup.sh full` or `./scripts/setup.sh compose` creates it if missing (bootstrap with `DOCKER_PREP=1` does the same). Or once manually: `docker network create public`.
 3. Start everything: `./scripts/setup.sh full` or `docker compose up -d --build`
+
+**Tear down and wipe Docker state** (containers + named volumes such as Postgres data, MinIO, Grafana, Prometheus, Traefik’s `letsencrypt` volume) so you can reinstall from scratch:
+
+```bash
+./scripts/setup.sh clean --help    # options
+./scripts/setup.sh clean           # down --volumes --remove-orphans
+./scripts/setup.sh clean --images  # also remove locally built compose images (--rmi local)
+./scripts/setup.sh clean --public-network   # also remove shared network "public" (only if safe on this host)
+./scripts/setup.sh full            # bring stack back
+```
+
+`.env` on disk is unchanged; delete or regenerate it yourself if you also want new secrets.
 
 Traefik reads `./docker/traefik/dynamic.yml` (the API writes managed routes there). The **panel**, **API**, and **MinIO** hostnames come from **`BASE_DOMAIN` in `.env`** by default (`api.<base>`, `panel.<base>`, `s3.<base>`, `minio.<base>`); optional overrides are `API_HOST`, `PANEL_HOST`, `PUBLIC_API_URL`, `MINIO_API_HOST`, `MINIO_CONSOLE_HOST`, and `CORS_ORIGIN` (see `docker-compose.yml`). Set `ACME_EMAIL` and point DNS at the host. MinIO is also on `127.0.0.1:9000` and `127.0.0.1:9001`.
 

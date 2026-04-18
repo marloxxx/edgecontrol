@@ -100,16 +100,14 @@ apply_generated_secrets() {
     warn "openssl not found — cannot generate secrets. Install OpenSSL or set values in $f manually."
     return 1
   fi
-  local jwt dbpw rspw wh seedpw minio_pw base
+  local jwt dbpw wh seedpw minio_pw base
   jwt=$(openssl rand -hex 32)
   dbpw=$(openssl rand -hex 24)
-  rspw=$(openssl rand -hex 24)
   wh=$(openssl rand -hex 32)
   seedpw=$(openssl rand -hex 16)
   minio_pw=$(openssl rand -hex 24)
   replace_env_line JWT_SECRET "$jwt" "$f"
   replace_env_line DB_PASSWORD "$dbpw" "$f"
-  replace_env_line REDIS_PASSWORD "$rspw" "$f"
   replace_env_line WEBHOOK_ALERT_SECRET "$wh" "$f"
   replace_env_line RBAC_SEED_PASSWORD "$seedpw" "$f"
   replace_env_line ADMIN_PASSWORD "$seedpw" "$f"
@@ -117,6 +115,162 @@ apply_generated_secrets() {
   replace_env_line REDIS_URL "redis://redis:6379" "$f"
   replace_env_line GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)" "$f"
   replace_env_line MINIO_ROOT_PASSWORD "$minio_pw" "$f"
+  patch_derived_env_keys "$f" || true
+  return 0
+}
+
+# Optional host hints (export when running setup.sh):
+#   EDGE_BASE_DOMAIN — if set and BASE_DOMAIN is still example.com, replace BASE_DOMAIN (VPS FQDN).
+# Derives ACME_EMAIL from BASE_DOMAIN when the file still has the .env.example placeholder.
+patch_derived_env_keys() {
+  local f="$1"
+  local changed=0 bd acme
+
+  if [[ -n "${EDGE_BASE_DOMAIN:-}" ]]; then
+    bd="$(read_env_var BASE_DOMAIN "$f")"
+    if [[ "$bd" == "example.com" ]]; then
+      replace_env_line BASE_DOMAIN "$EDGE_BASE_DOMAIN" "$f"
+      changed=1
+    fi
+  fi
+
+  bd="$(read_env_var BASE_DOMAIN "$f")"
+  acme="$(read_env_var ACME_EMAIL "$f")"
+  if [[ -n "$bd" && ( -z "$acme" || "$acme" == "admin@domain.com" ) ]]; then
+    replace_env_line ACME_EMAIL "admin@${bd}" "$f"
+    changed=1
+  fi
+
+  [[ "$changed" -eq 1 ]] && return 0
+  return 1
+}
+
+# Matches .env.example placeholder — treat as "must replace".
+JWT_SECRET_PLACEHOLDER='change_me_use_openssl_rand_hex_32_chars_minimum'
+
+# Fill only weak or empty values (does not rotate a valid JWT or existing DB password).
+patch_insecure_or_missing_secrets() {
+  local f="$1"
+  local changed=0
+  local v np
+
+  if ! command -v openssl >/dev/null 2>&1; then
+    v="$(read_env_var JWT_SECRET "$f")"
+    if [[ -z "$v" || ${#v} -lt 32 || "$v" == "$JWT_SECRET_PLACEHOLDER" ]]; then
+      warn "openssl not found — cannot auto-fill JWT_SECRET / DB_PASSWORD in $f"
+    fi
+    return 1
+  fi
+
+  v="$(read_env_var JWT_SECRET "$f")"
+  if [[ -z "$v" || ${#v} -lt 32 || "$v" == "$JWT_SECRET_PLACEHOLDER" ]]; then
+    replace_env_line JWT_SECRET "$(openssl rand -hex 32)" "$f"
+    changed=1
+  fi
+
+  v="$(read_env_var DB_PASSWORD "$f")"
+  if [[ -z "$v" ]]; then
+    np=$(openssl rand -hex 24)
+    replace_env_line DB_PASSWORD "$np" "$f"
+    replace_env_line DATABASE_URL "postgresql://admin:${np}@db:5432/edgecontrol" "$f"
+    changed=1
+  fi
+
+  v="$(read_env_var REDIS_URL "$f")"
+  case "$v" in
+    ''|redis://:@redis:6379)
+      replace_env_line REDIS_URL "redis://redis:6379" "$f"
+      changed=1
+      ;;
+    redis://*@redis:6379)
+      # Legacy template redis://:password@redis:6379 — bundled compose uses passwordless Redis on the internal network.
+      replace_env_line REDIS_URL "redis://redis:6379" "$f"
+      changed=1
+      ;;
+  esac
+
+  v="$(read_env_var WEBHOOK_ALERT_SECRET "$f")"
+  if [[ -z "$v" ]]; then
+    replace_env_line WEBHOOK_ALERT_SECRET "$(openssl rand -hex 32)" "$f"
+    changed=1
+  fi
+
+  v="$(read_env_var RBAC_SEED_PASSWORD "$f")"
+  if [[ "$v" == "ChangeMe123456!" ]]; then
+    np=$(openssl rand -hex 16)
+    replace_env_line RBAC_SEED_PASSWORD "$np" "$f"
+    replace_env_line ADMIN_PASSWORD "$np" "$f"
+    changed=1
+  else
+    v="$(read_env_var ADMIN_PASSWORD "$f")"
+    if [[ "$v" == "ChangeMe123456!" ]]; then
+      np=$(openssl rand -hex 16)
+      replace_env_line ADMIN_PASSWORD "$np" "$f"
+      replace_env_line RBAC_SEED_PASSWORD "$np" "$f"
+      changed=1
+    fi
+  fi
+
+  v="$(read_env_var GRAFANA_ADMIN_PASSWORD "$f")"
+  if [[ -z "$v" || "$v" == "ChangeMeGrafana!" ]]; then
+    replace_env_line GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)" "$f"
+    changed=1
+  fi
+
+  v="$(read_env_var MINIO_ROOT_PASSWORD "$f")"
+  if [[ -z "$v" || "$v" == "ChangeMeMinioRoot!" ]]; then
+    replace_env_line MINIO_ROOT_PASSWORD "$(openssl rand -hex 24)" "$f"
+    changed=1
+  fi
+
+  if patch_derived_env_keys "$f"; then
+    changed=1
+  fi
+
+  [[ "$changed" -eq 1 ]] && return 0
+  return 1
+}
+
+# mode: "strict" (full|compose — require usable .env) or "bootstrap" (warn if .env cannot be created).
+ensure_env_for_stack() {
+  local mode="${1:-strict}"
+  local ENV_EXAMPLE="$ROOT/.env.example"
+  local ENV_FILE="$ROOT/.env"
+
+  if [[ ! -f "$ENV_FILE" ]]; then
+    if [[ "${COPY_ENV:-1}" != "1" ]] || [[ ! -f "$ENV_EXAMPLE" ]]; then
+      if [[ "$mode" == "bootstrap" ]]; then
+        warn "No $ENV_FILE found. Create it from .env.example (set COPY_ENV=1 to auto-copy) before running the stack."
+        return 1
+      fi
+      die "No .env at $ENV_FILE. Copy .env.example or run with COPY_ENV=1 when .env.example exists."
+    fi
+    cp "$ENV_EXAMPLE" "$ENV_FILE"
+    log "Created $ENV_FILE from .env.example."
+    if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
+      apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
+      log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana, seed passwords; REDIS_URL set for internal compose)."
+    else
+      warn "GENERATE_SECRETS=0 — fill JWT_SECRET, DB_PASSWORD, DATABASE_URL, REDIS_URL, and URLs in $ENV_FILE yourself."
+    fi
+  else
+    if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
+      if patch_insecure_or_missing_secrets "$ENV_FILE"; then
+        log "Filled missing or default credentials in $ENV_FILE (openssl)."
+      fi
+    fi
+  fi
+
+  [[ -f "$ENV_FILE" ]] || return 1
+
+  if [[ "$mode" == "strict" ]]; then
+    local dbchk jwchk
+    dbchk="$(read_env_var DB_PASSWORD "$ENV_FILE")"
+    [[ -n "$dbchk" ]] || die "DB_PASSWORD must be set in $ENV_FILE"
+    jwchk="$(read_env_var JWT_SECRET "$ENV_FILE")"
+    [[ ${#jwchk} -ge 32 ]] || die "JWT_SECRET must be at least 32 characters in $ENV_FILE (install openssl and re-run, or set manually)."
+  fi
+  return 0
 }
 
 read_env_var() {
@@ -158,7 +312,7 @@ print_credentials_summary() {
   v="$(read_env_var DATABASE_URL "$f")"
   printf '  %-30s %s\n' "DATABASE_URL" "${v:-"(empty)"}"
   v="$(read_env_var REDIS_PASSWORD "$f")"
-  printf '  %-30s %s\n' "REDIS_PASSWORD" "${v:-"(empty)"}"
+  [[ -n "$v" ]] && printf '  %-30s %s\n' "REDIS_PASSWORD (legacy)" "$v"
   v="$(read_env_var REDIS_URL "$f")"
   printf '  %-30s %s\n' "REDIS_URL" "${v:-"(empty)"}"
   printf '\n%s\n' "Traefik / TLS (hostnames default from BASE_DOMAIN in docker-compose.yml)"
@@ -239,6 +393,75 @@ ensure_public_network() {
   docker network create public
 }
 
+# .env is preferred for compose interpolation; .env.example is enough for `compose down` when .env is absent.
+compose_env_file_for_stack() {
+  if [[ -f "$ROOT/.env" ]]; then
+    printf '%s\n' "$ROOT/.env"
+  elif [[ -f "$ROOT/.env.example" ]]; then
+    printf '%s\n' "$ROOT/.env.example"
+  else
+    return 1
+  fi
+}
+
+cmd_clean() {
+  require_docker_cli
+  [[ -f "$COMPOSE_FILE" ]] || die "missing $COMPOSE_FILE"
+
+  local rmi_local=0 rm_public=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --images) rmi_local=1 ;;
+      --public-network) rm_public=1 ;;
+      -h|--help)
+        cat <<EOF
+${ME} clean — remove Edgecontrol containers and compose volumes (fresh DB / MinIO / certs in Docker).
+
+  ./scripts/${ME} clean [--images] [--public-network]
+
+  Default: docker compose down --remove-orphans --volumes (named volumes: pgdata, minio_data, …).
+
+  --images           Also drop locally built images for this project (compose --rmi local).
+  --public-network   Also run: docker network rm public
+                     Only use if nothing else needs the shared external network "public".
+
+Then reinstall:  ./scripts/${ME} full
+EOF
+        return 0
+        ;;
+      *)
+        die "Unknown option: $1 (try: ./scripts/${ME} clean --help)"
+        ;;
+    esac
+    shift
+  done
+
+  local envf
+  envf="$(compose_env_file_for_stack)" || die "No .env or .env.example — cannot run compose down."
+  if [[ "$envf" == "$ROOT/.env.example" ]]; then
+    warn "No .env — using .env.example so compose can interpolate (MINIO/JWT, etc.)."
+  fi
+
+  log "Stopping stack and removing named volumes (Postgres, MinIO, Grafana, Prometheus, Lets Encrypt volume)…"
+  local extra=()
+  [[ "$rmi_local" -eq 1 ]] && extra+=(--rmi local)
+  (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file "$envf" --profile migrate down --remove-orphans --volumes "${extra[@]}")
+
+  if [[ "$rm_public" -eq 1 ]]; then
+    if docker network inspect public >/dev/null 2>&1; then
+      log "Removing external Docker network 'public' (--public-network)…"
+      docker network rm public 2>/dev/null || warn "Could not remove network 'public' (still attached to a container?). Check: docker network inspect public"
+    else
+      log "Network 'public' is not present."
+    fi
+  else
+    log "Left Docker network 'public' in place (external; other stacks may use it). Remove with: ./scripts/${ME} clean --public-network"
+  fi
+
+  echo ""
+  echo "Docker clean finished. Recreate stack: ./scripts/${ME} full   or   ./scripts/${ME} compose"
+}
+
 compose_migrate_profile() {
   require_docker_cli
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env --profile migrate "$@")
@@ -267,7 +490,7 @@ seed_via_docker() {
 
 cmd_compose() {
   require_docker_cli
-  require_env_file
+  ensure_env_for_stack strict
   ensure_public_network
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build "$@")
   echo "Stack started. See docker-compose.yml for services and Traefik labels."
@@ -316,7 +539,7 @@ cmd_apps() {
 
 cmd_full() {
   require_docker_cli
-  require_env_file
+  ensure_env_for_stack strict
   ensure_public_network
   echo "=== Edgecontrol full deploy (Docker — $ROOT) ==="
 
@@ -341,15 +564,26 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
 
   Environment (defaults 1 = on; set to 0 to skip):
     COPY_ENV, GENERATE_SECRETS, DOCKER_PREP, INSTALL_DOCKER, SHOW_CREDENTIALS
+    GENERATE_SECRETS=1: full|compose|bootstrap create .env from .env.example if missing, then openssl-fill
+      weak or empty secrets (JWT under 32 chars, empty DB password, ChangeMe* defaults, etc.) without rotating
+      already-strong values. Set GENERATE_SECRETS=0 to manage .env entirely by hand.
+    EDGE_BASE_DOMAIN (optional): export before full|compose|bootstrap — if BASE_DOMAIN is still example.com,
+      replace it with this value; ACME_EMAIL is set to admin@<BASE_DOMAIN> when it is empty or admin@domain.com.
+    Most .env.example fields are either openssl-generated, sensible defaults from the file, or derived as above.
+    Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID. Seed email addresses stay
+      as in .env unless you edit them (they are not secrets).
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).
 
 Deploy commands (stack = Docker only; no host pnpm):
-  ./scripts/${ME} full      — docker compose up --build + Prisma migrate
-  ./scripts/${ME} compose   — docker compose up -d --build
+  ./scripts/${ME} full      — .env + secrets if needed, docker compose up --build + Prisma migrate
+  ./scripts/${ME} compose   — .env + secrets if needed, docker compose up -d --build
   ./scripts/${ME} db        — prisma migrate deploy (host pnpm if installed, else Docker migrate service)
   ./scripts/${ME} reset     — prisma migrate reset --force (DANGER)
   ./scripts/${ME} seed      — prisma db seed (host pnpm if installed, else Docker)
   ./scripts/${ME} apps      — pnpm install + pnpm build (requires pnpm)
+
+  ./scripts/${ME} clean [--images] [--public-network]
+                            — compose down --volumes; optional image / public network removal (see clean --help)
 
   ./scripts/${ME} help      — this text
 EOF
@@ -360,31 +594,16 @@ cmd_bootstrap() {
 
   local ENV_EXAMPLE="$ROOT/.env.example"
   local ENV_FILE="$ROOT/.env"
-  local ENV_JUST_CREATED=0
 
   if [[ ! -f "$ENV_EXAMPLE" ]]; then
     warn "Missing $ENV_EXAMPLE — create it or restore from version control."
   fi
 
-  if [[ ! -f "$ENV_FILE" ]]; then
-    if [[ "$COPY_ENV" == "1" ]] && [[ -f "$ENV_EXAMPLE" ]]; then
-      cp "$ENV_EXAMPLE" "$ENV_FILE"
-      ENV_JUST_CREATED=1
-      log "Created $ENV_FILE from .env.example."
-    else
-      warn "No $ENV_FILE found. Create it from .env.example before running the stack."
-    fi
-  else
-    log "Using existing $ENV_FILE (secrets are not regenerated)"
+  if [[ -f "$ENV_FILE" ]]; then
+    log "Using $ENV_FILE (missing or default secrets are filled when GENERATE_SECRETS=1)."
   fi
 
-  if [[ "$ENV_JUST_CREATED" == "1" ]] && [[ "$GENERATE_SECRETS" == "1" ]]; then
-    log "Generating random secrets and passwords in $ENV_FILE..."
-    apply_generated_secrets "$ENV_FILE"
-    log "Done. Seed users share ADMIN_PASSWORD / RBAC_SEED_PASSWORD (see .env). Do not commit .env."
-  elif [[ "$ENV_JUST_CREATED" == "1" ]] && [[ "$GENERATE_SECRETS" != "1" ]]; then
-    warn "GENERATE_SECRETS=0 — fill JWT_SECRET, DB_PASSWORD, REDIS_PASSWORD, and URLs in $ENV_FILE yourself."
-  fi
+  ensure_env_for_stack bootstrap || true
 
   if [[ "$DOCKER_PREP" == "1" ]]; then
     ensure_docker_on_path
@@ -467,6 +686,10 @@ main() {
     apps)
       shift || true
       cmd_apps "$@"
+      ;;
+    clean)
+      shift || true
+      cmd_clean "$@"
       ;;
     *)
       die "Unknown command: $sub (try: ./scripts/${ME} help)"

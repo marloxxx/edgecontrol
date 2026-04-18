@@ -24,19 +24,14 @@ export class TraefikService {
   private readonly configPath = env.TRAEFIK_DYNAMIC_CONFIG_PATH
 
   buildConfig(routes: RouteConfig[]) {
-    const middlewares: Record<string, unknown> = {}
-    const config: {
-      http: {
-        routers: Record<string, unknown>
-        services: Record<string, unknown>
-        middlewares?: Record<string, unknown>
-      }
-    } = {
-      http: {
-        routers: {},
-        services: {}
-      }
+    if (routes.length === 0) {
+      // Traefik v3.6+: empty http.routers / http.services / http.middlewares are invalid as standalone maps.
+      return { http: {} }
     }
+
+    const middlewares: Record<string, unknown> = {}
+    const routers: Record<string, unknown> = {}
+    const services: Record<string, unknown> = {}
 
     for (const route of routes) {
       const key = route.domain.replace(/\./g, '-').replace(/[^a-zA-Z0-9-]/g, '')
@@ -76,9 +71,9 @@ export class TraefikService {
       if (middlewareNames.length > 0) {
         router.middlewares = middlewareNames
       }
-      config.http.routers[key] = router
+      routers[key] = router
 
-      config.http.services[key] = {
+      services[key] = {
         loadBalancer: {
           servers: [
             {
@@ -95,11 +90,12 @@ export class TraefikService {
       }
     }
 
+    const http: Record<string, unknown> = { routers, services }
     if (Object.keys(middlewares).length > 0) {
-      config.http.middlewares = middlewares
+      http.middlewares = middlewares
     }
 
-    return config
+    return { http }
   }
 
   readCurrentYaml() {

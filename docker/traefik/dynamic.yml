@@ -1,6 +1,4 @@
 # Edgecontrol — Traefik file provider. The API overwrites this file with managed service routes
-# (HTTPS + Let’s Encrypt on :443). The panel and core API are not defined here — they use
-# published host ports (see docker-compose.yml: PANEL_PUBLISH_PORT / API_PUBLISH_PORT).
-http:
-  routers: {}
-  services: {}
+# (HTTPS + Let’s Encrypt on :443). Traefik v3.6 rejects empty `routers`/`services`/`middlewares` maps;
+# use `http: {}` until routes exist, then the API writes non-empty `http.routers` and `http.services`.
+http: {}

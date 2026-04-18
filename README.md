@@ -54,6 +54,8 @@ On first run `setup.sh` (or **`setup.sh full` / `compose`**) can:
 
 ### Database migrations and seed
 
+Migrations live under `packages/db/prisma/migrations`. If **`migrate deploy` fails** after a bad history (for example P3018 on a fresh volume), wipe the Postgres volume and redeploy: `./scripts/setup.sh clean` then `./scripts/setup.sh full`. Do not wipe production data unless you intend to lose it.
+
 With **pnpm** on the host (typical laptop):
 
 ```bash

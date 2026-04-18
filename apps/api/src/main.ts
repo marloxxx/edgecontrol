@@ -47,4 +47,7 @@ async function bootstrap() {
   await app.listen(env.API_PORT)
 }
 
-void bootstrap()
+void bootstrap().catch((err) => {
+  console.error('[edgecontrol-api] Bootstrap failed:', err)
+  process.exit(1)
+})

@@ -117,13 +117,6 @@ apply_generated_secrets() {
   replace_env_line REDIS_URL "redis://redis:6379" "$f"
   replace_env_line GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)" "$f"
   replace_env_line MINIO_ROOT_PASSWORD "$minio_pw" "$f"
-  base="$(read_env_var BASE_DOMAIN "$f")"
-  base="${base//$'\r'/}"
-  base="${base// /}"
-  if [[ -n "$base" ]]; then
-    replace_env_line MINIO_API_HOST "s3.${base}" "$f"
-    replace_env_line MINIO_CONSOLE_HOST "minio.${base}" "$f"
-  fi
 }
 
 read_env_var() {
@@ -159,8 +152,6 @@ print_credentials_summary() {
   printf '  %-30s %s\n' "API_PORT" "${v:-"(not set)"}"
   v="$(read_env_var JWT_SECRET "$f")"
   printf '  %-30s %s\n' "JWT_SECRET" "${v:-"(empty)"}"
-  v="$(read_env_var CORS_ORIGIN "$f")"
-  printf '  %-30s %s\n' "CORS_ORIGIN" "${v:-"(not set)"}"
   printf '\n%s\n' "Database & Redis"
   v="$(read_env_var DB_PASSWORD "$f")"
   printf '  %-30s %s\n' "DB_PASSWORD" "${v:-"(empty)"}"
@@ -170,26 +161,29 @@ print_credentials_summary() {
   printf '  %-30s %s\n' "REDIS_PASSWORD" "${v:-"(empty)"}"
   v="$(read_env_var REDIS_URL "$f")"
   printf '  %-30s %s\n' "REDIS_URL" "${v:-"(empty)"}"
-  printf '\n%s\n' "Traefik / TLS (VPS 1)"
+  printf '\n%s\n' "Traefik / TLS (hostnames default from BASE_DOMAIN in docker-compose.yml)"
   v="$(read_env_var ACME_EMAIL "$f")"
   printf '  %-30s %s\n' "ACME_EMAIL" "${v:-"(empty)"}"
-  printf '\n%s\n' "MinIO (Traefik / TLS — set BASE_DOMAIN before first setup to auto-fill hostnames)"
   v="$(read_env_var BASE_DOMAIN "$f")"
   printf '  %-30s %s\n' "BASE_DOMAIN" "${v:-"(empty)"}"
+  v="$(read_env_var CORS_ORIGIN "$f")"
+  if [[ -n "$v" ]]; then
+    printf '  %-30s %s\n' "CORS_ORIGIN" "$v"
+  else
+    printf '  %-30s %s\n' "CORS_ORIGIN" "(Compose default: https://panel.<BASE_DOMAIN>)"
+  fi
+  for key in API_HOST PANEL_HOST PUBLIC_API_URL MINIO_API_HOST MINIO_CONSOLE_HOST; do
+    v="$(read_env_var "$key" "$f")"
+    [[ -n "$v" ]] && printf '  %-30s %s\n' "$key (optional override)" "$v"
+  done
+  printf '  %-30s %s\n' "→ default hosts" "api.<BASE>, panel.<BASE>, s3.<BASE>, minio.<BASE>"
+  printf '\n%s\n' "MinIO"
   v="$(read_env_var MINIO_ROOT_USER "$f")"
   printf '  %-30s %s\n' "MINIO_ROOT_USER" "${v:-"(empty)"}"
   v="$(read_env_var MINIO_ROOT_PASSWORD "$f")"
   printf '  %-30s %s\n' "MINIO_ROOT_PASSWORD" "${v:-"(empty)"}"
   v="$(read_env_var MINIO_BUCKET "$f")"
   printf '  %-30s %s\n' "MINIO_BUCKET" "${v:-"(empty)"}"
-  v="$(read_env_var MINIO_API_HOST "$f")"
-  printf '  %-30s %s\n' "MINIO_API_HOST" "${v:-"(empty)"}"
-  v="$(read_env_var MINIO_CONSOLE_HOST "$f")"
-  printf '  %-30s %s\n' "MINIO_CONSOLE_HOST" "${v:-"(empty)"}"
-  v="$(read_env_var MINIO_SERVER_URL "$f")"
-  printf '  %-30s %s\n' "MINIO_SERVER_URL" "${v:-"(empty)"}"
-  v="$(read_env_var MINIO_BROWSER_REDIRECT_URL "$f")"
-  printf '  %-30s %s\n' "MINIO_BROWSER_REDIRECT_URL" "${v:-"(empty)"}"
   printf '\n%s\n' "Webhooks & integrations"
   v="$(read_env_var WEBHOOK_ALERT_SECRET "$f")"
   printf '  %-30s %s\n' "WEBHOOK_ALERT_SECRET" "${v:-"(empty)"}"

@@ -13,4 +13,7 @@ async function bootstrapWorker() {
   })
 }
 
-void bootstrapWorker()
+void bootstrapWorker().catch((err) => {
+  console.error('[edgecontrol-worker] Bootstrap failed:', err)
+  process.exit(1)
+})

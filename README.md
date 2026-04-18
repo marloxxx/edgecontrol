@@ -98,7 +98,7 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 2. External network **`public`**: `./scripts/setup.sh full` or `./scripts/setup.sh compose` creates it if missing (bootstrap with `DOCKER_PREP=1` does the same). Or once manually: `docker network create public`.
 3. Start everything: `./scripts/setup.sh full` or `docker compose up -d --build`
 
-Traefik reads `./docker/traefik/dynamic.yml` (the API updates route definitions at runtime). For HTTPS, set `ACME_EMAIL` and point DNS at the host. MinIO uses `MINIO_API_HOST` and `MINIO_CONSOLE_HOST` in `.env` for Traefik Host rules; the S3 API and console are also bound to `127.0.0.1:9000` and `127.0.0.1:9001` on the host.
+Traefik reads `./docker/traefik/dynamic.yml` (the API writes managed routes there). The **panel**, **API**, and **MinIO** hostnames come from **`BASE_DOMAIN` in `.env`** by default (`api.<base>`, `panel.<base>`, `s3.<base>`, `minio.<base>`); optional overrides are `API_HOST`, `PANEL_HOST`, `PUBLIC_API_URL`, `MINIO_API_HOST`, `MINIO_CONSOLE_HOST`, and `CORS_ORIGIN` (see `docker-compose.yml`). Set `ACME_EMAIL` and point DNS at the host. MinIO is also on `127.0.0.1:9000` and `127.0.0.1:9001`.
 
 ### Host checkout path (Linux)
 

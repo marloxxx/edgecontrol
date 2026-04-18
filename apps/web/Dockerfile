@@ -14,6 +14,10 @@ RUN pnpm install --frozen-lockfile
 COPY apps/web ./apps/web
 COPY packages ./packages
 
+# Browser-facing API URL (must match Traefik API_HOST, e.g. https://api.example.com)
+ARG VITE_API_URL=https://api.example.com
+ENV VITE_API_URL=${VITE_API_URL}
+
 RUN pnpm --filter @edgecontrol/web build
 
 # Stage 2: Serve

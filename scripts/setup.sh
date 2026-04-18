@@ -121,10 +121,8 @@ apply_generated_secrets() {
   base="${base//$'\r'/}"
   base="${base// /}"
   if [[ -n "$base" ]]; then
-    replace_env_line MINIO_S3_DOMAIN "s3.${base}" "$f"
-    replace_env_line MINIO_CONSOLE_DOMAIN "minio.${base}" "$f"
-    replace_env_line MINIO_SERVER_URL "https://s3.${base}" "$f"
-    replace_env_line MINIO_BROWSER_REDIRECT_URL "https://minio.${base}" "$f"
+    replace_env_line MINIO_API_HOST "s3.${base}" "$f"
+    replace_env_line MINIO_CONSOLE_HOST "minio.${base}" "$f"
   fi
 }
 
@@ -184,10 +182,10 @@ print_credentials_summary() {
   printf '  %-30s %s\n' "MINIO_ROOT_PASSWORD" "${v:-"(empty)"}"
   v="$(read_env_var MINIO_BUCKET "$f")"
   printf '  %-30s %s\n' "MINIO_BUCKET" "${v:-"(empty)"}"
-  v="$(read_env_var MINIO_S3_DOMAIN "$f")"
-  printf '  %-30s %s\n' "MINIO_S3_DOMAIN" "${v:-"(empty)"}"
-  v="$(read_env_var MINIO_CONSOLE_DOMAIN "$f")"
-  printf '  %-30s %s\n' "MINIO_CONSOLE_DOMAIN" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_API_HOST "$f")"
+  printf '  %-30s %s\n' "MINIO_API_HOST" "${v:-"(empty)"}"
+  v="$(read_env_var MINIO_CONSOLE_HOST "$f")"
+  printf '  %-30s %s\n' "MINIO_CONSOLE_HOST" "${v:-"(empty)"}"
   v="$(read_env_var MINIO_SERVER_URL "$f")"
   printf '  %-30s %s\n' "MINIO_SERVER_URL" "${v:-"(empty)"}"
   v="$(read_env_var MINIO_BROWSER_REDIRECT_URL "$f")"

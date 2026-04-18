@@ -21,6 +21,16 @@ log() { printf '\033[0;32m[%s]\033[0m %s\n' "$(date '+%H:%M:%S')" "$*"; }
 warn() { printf '\033[0;33m[%s]\033[0m %s\n' "$(date '+%H:%M:%S')" "$*" >&2; }
 die() { warn "$*"; exit 1; }
 
+# Non-login shells (e.g. ssh non-interactive, cron) often omit /usr/bin from PATH; Docker lives there or under /snap/bin.
+ensure_docker_on_path() {
+  export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin${PATH:+:$PATH}"
+}
+
+require_docker_cli() {
+  ensure_docker_on_path
+  command -v docker >/dev/null 2>&1 || die "Docker CLI not found. Install Docker Engine: https://docs.docker.com/engine/install/"
+}
+
 install_docker_darwin() {
   if ! command -v brew >/dev/null 2>&1; then
     die "Docker is not installed and Homebrew was not found. Install Homebrew (https://brew.sh) or Docker Desktop (https://docs.docker.com/desktop/install/mac-install/), then re-run this script."
@@ -215,15 +225,15 @@ require_env_file() {
 }
 
 require_pnpm() {
-  command -v pnpm >/dev/null 2>&1 || die "pnpm is required for this command — or use: ./scripts/${ME} db|seed|full without pnpm (Docker only)"
+  command -v pnpm >/dev/null 2>&1 || die "pnpm is required for ./scripts/${ME} apps (install via Corepack). For stack + DB use ./scripts/${ME} full|compose|db|seed — Docker only, no host pnpm."
 }
 
 compose_migrate_profile() {
+  require_docker_cli
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env --profile migrate "$@")
 }
 
 migrate_via_docker() {
-  command -v docker >/dev/null 2>&1 || die "docker is required to run migrations without pnpm"
   [[ -f "$COMPOSE_FILE" ]] || die "missing $COMPOSE_FILE"
   require_env_file
   compose_migrate_profile run --rm migrate \
@@ -231,7 +241,6 @@ migrate_via_docker() {
 }
 
 reset_via_docker() {
-  command -v docker >/dev/null 2>&1 || die "docker is required to run reset without pnpm"
   [[ -f "$COMPOSE_FILE" ]] || die "missing $COMPOSE_FILE"
   require_env_file
   compose_migrate_profile run --rm migrate \
@@ -239,7 +248,6 @@ reset_via_docker() {
 }
 
 seed_via_docker() {
-  command -v docker >/dev/null 2>&1 || die "docker is required to run seed without pnpm"
   [[ -f "$COMPOSE_FILE" ]] || die "missing $COMPOSE_FILE"
   require_env_file
   compose_migrate_profile run --rm migrate \
@@ -247,7 +255,7 @@ seed_via_docker() {
 }
 
 cmd_compose() {
-  command -v docker >/dev/null 2>&1 || die "docker is required for compose"
+  require_docker_cli
   require_env_file
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build "$@")
   echo "Stack started. See docker-compose.yml for services and Traefik labels."
@@ -255,36 +263,39 @@ cmd_compose() {
 
 cmd_db() {
   require_env_file
+  ensure_docker_on_path
   if command -v pnpm >/dev/null 2>&1; then
     (cd "$ROOT" && pnpm --filter @edgecontrol/db prisma:migrate:deploy)
   elif command -v docker >/dev/null 2>&1; then
     migrate_via_docker
   else
-    die "install pnpm, or Docker with $COMPOSE_FILE, to run migrations"
+    die "install Docker Engine, or pnpm for host migrations"
   fi
   echo "Database migrations applied."
 }
 
 cmd_reset() {
   require_env_file
+  ensure_docker_on_path
   if command -v pnpm >/dev/null 2>&1; then
     (cd "$ROOT" && pnpm --filter @edgecontrol/db exec prisma migrate reset --force)
   elif command -v docker >/dev/null 2>&1; then
     reset_via_docker
   else
-    die "install pnpm, or Docker with $COMPOSE_FILE, to reset the database"
+    die "install Docker Engine, or pnpm for host reset"
   fi
   echo "Database reset completed."
 }
 
 cmd_seed() {
   require_env_file
+  ensure_docker_on_path
   if command -v pnpm >/dev/null 2>&1; then
     (cd "$ROOT" && pnpm --filter @edgecontrol/db prisma:seed)
   elif command -v docker >/dev/null 2>&1; then
     seed_via_docker
   else
-    die "install pnpm, or Docker with $COMPOSE_FILE, to run the seed"
+    die "install Docker Engine, or pnpm for host seed"
   fi
   echo "Database seed completed."
 }
@@ -297,30 +308,10 @@ cmd_apps() {
   echo "Apps built (API + web + packages)."
 }
 
-cmd_full_with_pnpm() {
-  require_pnpm
+cmd_full() {
+  require_docker_cli
   require_env_file
-  echo "=== Edgecontrol full deploy (host pnpm: $ROOT) ==="
-
-  echo ">>> Installing dependencies..."
-  (cd "$ROOT" && pnpm install)
-
-  echo ">>> Database migrations..."
-  (cd "$ROOT" && pnpm --filter @edgecontrol/db prisma:migrate:deploy)
-
-  echo ">>> Building applications (turbo)..."
-  (cd "$ROOT" && pnpm run build)
-
-  echo ""
-  echo "=== Done ==="
-  echo "Artefacts: apps/api/dist, apps/web/dist (or package outputs)."
-  echo "Run stack: ./scripts/${ME} compose"
-}
-
-cmd_full_docker_only() {
-  command -v docker >/dev/null 2>&1 || die "Docker is required for full deploy when pnpm is not installed"
-  require_env_file
-  echo "=== Edgecontrol full deploy (Docker only — $ROOT) ==="
+  echo "=== Edgecontrol full deploy (Docker — $ROOT) ==="
 
   echo ">>> Building images and starting containers..."
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build)
@@ -331,14 +322,6 @@ cmd_full_docker_only() {
   echo ""
   echo "=== Done ==="
   echo "API + web + dependencies are running via Docker Compose."
-}
-
-cmd_full() {
-  if command -v pnpm >/dev/null 2>&1; then
-    cmd_full_with_pnpm
-  else
-    cmd_full_docker_only
-  fi
 }
 
 usage() {
@@ -353,7 +336,7 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
     COPY_ENV, GENERATE_SECRETS, DOCKER_PREP, INSTALL_DOCKER, SHOW_CREDENTIALS
 
 Deploy commands:
-  ./scripts/${ME} full      — pnpm: install, migrate, turbo build; else: compose up --build + migrate in Docker
+  ./scripts/${ME} full      — docker compose up --build + Prisma migrate (no host pnpm)
   ./scripts/${ME} compose   — docker compose up -d --build
   ./scripts/${ME} db        — prisma migrate deploy (pnpm or Docker migrate service)
   ./scripts/${ME} reset     — prisma migrate reset --force (DANGER)
@@ -396,6 +379,7 @@ cmd_bootstrap() {
   fi
 
   if [[ "$DOCKER_PREP" == "1" ]]; then
+    ensure_docker_on_path
     if ! command -v docker >/dev/null 2>&1; then
       if [[ "$INSTALL_DOCKER" == "1" ]]; then
         try_install_docker
@@ -428,7 +412,7 @@ cmd_bootstrap() {
   cat <<EOF
 
 Next steps:
-  • ./scripts/${ME} full      # compose + migrate (Docker-only if pnpm is not installed)
+  • ./scripts/${ME} full      # compose + migrate (Docker only)
   • ./scripts/${ME} compose
   • Local dev: pnpm install && pnpm --filter @edgecontrol/db prisma:generate && pnpm dev
 EOF

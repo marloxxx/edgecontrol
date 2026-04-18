@@ -29,7 +29,7 @@ git clone https://github.com/marloxxx/edgecontrol.git
 cd edgecontrol
 ./scripts/setup.sh help       # bootstrap + deploy commands
 ./scripts/setup.sh            # .env + secrets + Docker network `public` (no Node)
-./scripts/setup.sh full       # compose + migrate (pnpm on host if installed, else Docker only)
+./scripts/setup.sh full       # compose + migrate (Docker only; no host pnpm)
 ```
 
 On a server you might clone into **`/opt/stack`** or **`/opt/apps`** instead:

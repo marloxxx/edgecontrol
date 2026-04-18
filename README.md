@@ -12,7 +12,7 @@ On **Linux servers** it is usual to keep this checkout under **`/opt/stack`** or
 | API | NestJS, tRPC |
 | Web | Vite, React, Tailwind CSS |
 | Data | PostgreSQL ([Prisma](https://www.prisma.io/)), Redis |
-| Edge | Traefik v3 (file provider, Let’s Encrypt) |
+| Edge | Traefik v3 (file provider + Let’s Encrypt for managed routes; no Docker provider) |
 | Containers | Docker Compose |
 
 ## Requirements
@@ -116,11 +116,13 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 
 `.env` on disk is unchanged; delete or regenerate it yourself if you also want new secrets.
 
-Traefik reads `./docker/traefik/dynamic.yml` (the API writes managed routes there). The **panel**, **API**, and **MinIO** hostnames come from **`BASE_DOMAIN` in `.env`** by default (`api.<base>`, `panel.<base>`, `s3.<base>`, `minio.<base>`); optional overrides are `API_HOST`, `PANEL_HOST`, `PUBLIC_API_URL`, `MINIO_API_HOST`, `MINIO_CONSOLE_HOST`, and `CORS_ORIGIN` (see `docker-compose.yml`). Set `ACME_EMAIL` and point DNS at the host. MinIO is also on `127.0.0.1:9000` and `127.0.0.1:9001`.
+**Panel and API (no Traefik Docker labels):** open **http://127.0.0.1:8080** for the panel (default **`PANEL_PUBLISH_PORT`**). The panel image’s **nginx** forwards **`/trpc`** and **`/api`** to **`http://api:3000`**, so the SPA uses **same-origin** URLs by default (do not set empty **`VITE_API_URL`** / **`PUBLIC_API_URL`** keys in `.env`). For a custom API base in the built bundle, use **`docker compose build web --build-arg VITE_API_URL=…`**. Set **`CORS_ORIGIN`** to the panel origin the browser uses (for example `http://YOUR_VPS_IP:8080` when not on localhost). Direct API checks: **http://127.0.0.1:3001** (**`API_PUBLISH_PORT`**). Remote loopback-only access: **SSH port forwarding** or publish on **`0.0.0.0`** and firewall. **MinIO** stays on **127.0.0.1:9000** / **:9001**. Local **`pnpm dev`** defaults the tRPC client to **http://localhost:3001** unless **`VITE_API_URL`** is set.
 
-**Traefik shows “404 page not found” for every site:** routers are defined on **`websecure` (HTTPS) only**. Plain **`http://`** used to hit no router on port 80 → default 404. Compose now sets a **global redirect from `web` (:80) to `websecure` (:443)**. After `git pull`, recreate Traefik: `docker compose up -d --force-recreate traefik` (or `./scripts/setup.sh compose`). If **https://** still 404s, check the **Host** you open matches `.env` (`BASE_DOMAIN` / `API_HOST` / `PANEL_HOST` exactly as in DNS), and that `edgecontrol-api` / `edgecontrol-web` are healthy (`docker compose ps`).
+**Traefik (file provider only):** reads `./docker/traefik/dynamic.yml`, which the **API rewrites** when you publish **managed** routes from the panel. Those routes use **HTTPS on :443** with **`ACME_EMAIL`** and Let’s Encrypt. Traefik does **not** use the Docker socket in this compose file.
 
-**Traefik logs `client version 1.24 is too old` / `Minimum supported API version is 1.40`:** the Traefik container’s Docker client API was too old for your Engine. This repo sets **`DOCKER_API_VERSION=1.47`** on the Traefik service (with **`traefik:v3.6`**); recreate the container. If your Engine is older and errors on the API version, lower `DOCKER_API_VERSION` (minimum **1.40**). On other stacks (e.g. Licentra), add the same under `traefik:` → `environment:` and remove any **`DOCKER_API_VERSION=1.24`** (or similar) from the host or `.env` if you had set it globally.
+**Managed routes: “404” or no certificate:** routers from `dynamic.yml` use **`websecure` only**; **http://** on :80 redirects to **https://** on :443. If **https://** 404s, the **Host** header must match the domain on the service record, DNS must point here, and Traefik must be running (`docker compose ps`). Recreate after config changes: `docker compose up -d --force-recreate traefik`.
+
+**ACME `rejectedIdentifier` / “forbidden by policy”:** Let’s Encrypt refuses some names (for example **`*.example.com`**). Use a real public hostname on **managed** services in the UI, with DNS to this host. **`BASE_DOMAIN`** in `.env` is mainly for **`ACME_EMAIL`** derivation (`admin@<BASE_DOMAIN>` when you still have the example placeholder); you can `export EDGE_BASE_DOMAIN=yourdomain.com` before `./scripts/setup.sh full` to replace `example.com`.
 
 ### Host checkout path (Linux)
 
@@ -137,7 +139,7 @@ The Compose file runs the **edge**, **app**, and **observability** roles on one 
 
 | Concern | All-in-one Compose | Split (e.g. three VPS) |
 |--------|----------------------|-------------------------|
-| Traefik → panel / API | Use Docker service URLs, e.g. `http://web:80` and `http://api:3000`, on the shared `internal` network. | Use **private IPs or VPN hostnames** in `dynamic.yml` (as in the generated template with `10.0.0.x`). |
+| Panel / API vs managed edge | Host: published **loopback** ports to `web` / `api`; internal callers use `http://api:3000`. Managed routes go through **Traefik :443** from `dynamic.yml`. | Same ideas: private URLs in `dynamic.yml` for upstreams; expose panel/API via VPN or your own reverse proxy if not on loopback. |
 | Prometheus scrape target | `api:3000` in [docker/prometheus/prometheus.yml](docker/prometheus/prometheus.yml) resolves on the Compose network. | Point `static_configs.targets` at the **app host’s private address** (and open the scrape path only between observability and app). |
 | Grafana → Prometheus | `http://prometheus:9090` in provisioning. | Same hostname if both run in one observability stack; otherwise use the private Prometheus URL. |
 | Host ports **9090** / **3010** | Published for local access; convenient for laptops. | Prefer binding to a **private interface**, removing public mappings, or firewall rules so Prometheus and Grafana are not exposed on the internet. |

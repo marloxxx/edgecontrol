@@ -5,7 +5,16 @@ import type { AppRouter } from '@edgecontrol/trpc'
 
 import { ACCESS_TOKEN_KEY } from '@/lib/auth-storage'
 
-const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+/** In Docker production, leave unset so calls use same-origin `/trpc` (nginx → `http://api:3000`). */
+function defaultApiBase(): string {
+  if (import.meta.env.VITE_API_URL && String(import.meta.env.VITE_API_URL).trim() !== '') {
+    return String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+  }
+  if (import.meta.env.PROD) return ''
+  return 'http://localhost:3001'
+}
+
+const apiUrl = defaultApiBase()
 
 export const trpc = createTRPCReact<AppRouter>()
 

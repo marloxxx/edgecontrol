@@ -14,11 +14,11 @@ RUN pnpm install --frozen-lockfile
 COPY apps/web ./apps/web
 COPY packages ./packages
 
-# Browser-facing API URL (must match Traefik API_HOST, e.g. https://api.example.com)
-ARG VITE_API_URL=https://api.example.com
-ENV VITE_API_URL=${VITE_API_URL}
-
-RUN pnpm --filter @edgecontrol/web build
+# Optional: `docker compose build web --build-arg VITE_API_URL=…` when not using same-origin + nginx.
+ARG VITE_API_URL
+RUN set -e; \
+    if [ -n "$VITE_API_URL" ]; then export VITE_API_URL="$VITE_API_URL"; fi; \
+    pnpm --filter @edgecontrol/web build
 
 # Stage 2: Serve
 FROM nginx:alpine AS runner

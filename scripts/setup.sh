@@ -87,10 +87,14 @@ replace_env_line() {
   local key="$1"
   local value="$2"
   local file="$3"
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    sed -i '' "s@^${key}=.*@${key}=${value}@" "$file"
+  if grep -q "^${key}=" "$file" 2>/dev/null; then
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      sed -i '' "s@^${key}=.*@${key}=${value}@" "$file"
+    else
+      sed -i "s@^${key}=.*@${key}=${value}@" "$file"
+    fi
   else
-    sed -i "s@^${key}=.*@${key}=${value}@" "$file"
+    printf '%s=%s\n' "$key" "$value" >>"$file"
   fi
 }
 
@@ -273,6 +277,17 @@ ensure_env_for_stack() {
   return 0
 }
 
+# Warn when TLS hostnames will never get a public certificate from Let's Encrypt.
+warn_letsencrypt_placeholder_domain() {
+  local f="$ROOT/.env"
+  [[ -f "$f" ]] || return 0
+  local bd
+  bd="$(read_env_var BASE_DOMAIN "$f")"
+  if [[ "$bd" == "example.com" ]]; then
+    warn "BASE_DOMAIN is still example.com — fine for local ACME_EMAIL hints; for **managed** Traefik routes (domains in the panel), use DNS names you control (Let's Encrypt rejects *.example.com). Or export EDGE_BASE_DOMAIN=... before bootstrap|full|compose."
+  fi
+}
+
 read_env_var() {
   local key="$1" file="$2" line
   if [[ ! -f "$file" ]]; then
@@ -295,7 +310,7 @@ print_credentials_summary() {
   local v
   printf '\n'
   printf '%s\n' "═══════════════════════════════════════════════════════════════════"
-  printf '%s\n' "  Edgecontrol — VPS 1 role: public Traefik / edge (see README & compose)"
+  printf '%s\n' "  Edgecontrol — panel/API on host ports; Traefik for managed routes (see README & compose)"
   printf '%s\n' "  Credentials from: $f"
   printf '%s\n' "  Treat as secret. Do not commit .env or paste into public channels."
   printf '%s\n' "═══════════════════════════════════════════════════════════════════"
@@ -315,22 +330,21 @@ print_credentials_summary() {
   [[ -n "$v" ]] && printf '  %-30s %s\n' "REDIS_PASSWORD (legacy)" "$v"
   v="$(read_env_var REDIS_URL "$f")"
   printf '  %-30s %s\n' "REDIS_URL" "${v:-"(empty)"}"
-  printf '\n%s\n' "Traefik / TLS (hostnames default from BASE_DOMAIN in docker-compose.yml)"
+  printf '\n%s\n' "Panel / API (published on host — see docker-compose.yml)"
+  for key in API_PUBLISH_PORT PANEL_PUBLISH_PORT PUBLIC_API_URL CORS_ORIGIN; do
+    v="$(read_env_var "$key" "$f")"
+    [[ -n "$v" ]] && printf '  %-30s %s\n' "$key" "$v"
+  done
+  printf '  %-30s %s\n' "→ if unset" "Compose uses 127.0.0.1:3001 (API) and :8080 (panel)"
+  printf '\n%s\n' "Traefik / TLS (file provider — API writes dynamic.yml; Let’s Encrypt for managed routes)"
   v="$(read_env_var ACME_EMAIL "$f")"
   printf '  %-30s %s\n' "ACME_EMAIL" "${v:-"(empty)"}"
   v="$(read_env_var BASE_DOMAIN "$f")"
   printf '  %-30s %s\n' "BASE_DOMAIN" "${v:-"(empty)"}"
   v="$(read_env_var CORS_ORIGIN "$f")"
-  if [[ -n "$v" ]]; then
-    printf '  %-30s %s\n' "CORS_ORIGIN" "$v"
-  else
-    printf '  %-30s %s\n' "CORS_ORIGIN" "(Compose default: https://panel.<BASE_DOMAIN>)"
+  if [[ -z "$v" ]]; then
+    printf '  %-30s %s\n' "CORS_ORIGIN" "(Compose default: http://127.0.0.1:<PANEL_PUBLISH_PORT>)"
   fi
-  for key in API_HOST PANEL_HOST PUBLIC_API_URL MINIO_API_HOST MINIO_CONSOLE_HOST; do
-    v="$(read_env_var "$key" "$f")"
-    [[ -n "$v" ]] && printf '  %-30s %s\n' "$key (optional override)" "$v"
-  done
-  printf '  %-30s %s\n' "→ default hosts" "api.<BASE>, panel.<BASE>, s3.<BASE>, minio.<BASE>"
   printf '\n%s\n' "MinIO"
   v="$(read_env_var MINIO_ROOT_USER "$f")"
   printf '  %-30s %s\n' "MINIO_ROOT_USER" "${v:-"(empty)"}"
@@ -491,6 +505,7 @@ seed_via_docker() {
 cmd_compose() {
   require_docker_cli
   ensure_env_for_stack strict
+  warn_letsencrypt_placeholder_domain
   ensure_public_network
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build "$@")
   echo "Stack started. See docker-compose.yml for services and Traefik labels."
@@ -540,6 +555,7 @@ cmd_apps() {
 cmd_full() {
   require_docker_cli
   ensure_env_for_stack strict
+  warn_letsencrypt_placeholder_domain
   ensure_public_network
   echo "=== Edgecontrol full deploy (Docker — $ROOT) ==="
 

@@ -2,16 +2,10 @@ services:
   traefik:
     image: traefik:v3.6
     container_name: edgecontrol-traefik
-    environment:
-      # Newer Docker daemons require API >= 1.40; pin high enough for current Engine (lower if an older daemon rejects it).
-      DOCKER_API_VERSION: "1.47"
     command:
       - "--api.dashboard=false"
       - "--providers.file.filename=/etc/traefik/dynamic.yml"
       - "--providers.file.watch=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
@@ -27,7 +21,6 @@ services:
     volumes:
       - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml
       - letsencrypt:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - public
       - internal
@@ -37,20 +30,14 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     container_name: edgecontrol-api
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
-      - "traefik.http.routers.edgecontrol-api.rule=Host(`${API_HOST:-api.${BASE_DOMAIN}}`)"
-      - "traefik.http.routers.edgecontrol-api.entrypoints=websecure"
-      - "traefik.http.routers.edgecontrol-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.edgecontrol-api.service=edgecontrol-api-svc"
-      - "traefik.http.services.edgecontrol-api-svc.loadbalancer.server.port=3000"
+    ports:
+      - "127.0.0.1:${API_PUBLISH_PORT:-3001}:3000"
     environment:
       API_PORT: 3000
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
-      CORS_ORIGIN: ${CORS_ORIGIN:-https://panel.${BASE_DOMAIN}}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://127.0.0.1:${PANEL_PUBLISH_PORT:-8080}}
       TRAEFIK_DYNAMIC_CONFIG_PATH: /traefik-config/dynamic.yml
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
@@ -108,17 +95,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      args:
-        VITE_API_URL: ${PUBLIC_API_URL:-https://api.${BASE_DOMAIN}}
     container_name: edgecontrol-web
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
-      - "traefik.http.routers.edgecontrol-panel.rule=Host(`${PANEL_HOST:-panel.${BASE_DOMAIN}}`)"
-      - "traefik.http.routers.edgecontrol-panel.entrypoints=websecure"
-      - "traefik.http.routers.edgecontrol-panel.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.edgecontrol-panel.service=edgecontrol-panel-svc"
-      - "traefik.http.services.edgecontrol-panel-svc.loadbalancer.server.port=80"
+    ports:
+      - "127.0.0.1:${PANEL_PUBLISH_PORT:-8080}:80"
     depends_on:
       - api
     networks:
@@ -165,8 +144,7 @@ services:
     networks:
       - internal
 
-  # MinIO — S3 API :9000 + console :9001 behind Traefik (MINIO_API_HOST / MINIO_CONSOLE_HOST in .env).
-  # Loopback publishes for VPS/local clients or ssh -L 9000:127.0.0.1:9000 -L 9001:127.0.0.1:9001 user@vps
+  # MinIO — S3 API :9000 + console :9001 on loopback (VPS/local or ssh -L 9000:127.0.0.1:9000 …).
   minio:
     image: minio/minio:latest
     container_name: edgecontrol-minio
@@ -180,19 +158,6 @@ services:
       - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
-      - "traefik.http.routers.minio-api.rule=Host(`${MINIO_API_HOST:-s3.${BASE_DOMAIN}}`)"
-      - "traefik.http.routers.minio-api.entrypoints=websecure"
-      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.minio-api.service=minio-s3"
-      - "traefik.http.services.minio-s3.loadbalancer.server.port=9000"
-      - "traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_HOST:-minio.${BASE_DOMAIN}}`)"
-      - "traefik.http.routers.minio-console.entrypoints=websecure"
-      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.minio-console.service=minio-console-svc"
-      - "traefik.http.services.minio-console-svc.loadbalancer.server.port=9001"
     networks:
       - internal
 

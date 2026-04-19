@@ -13,6 +13,12 @@ ME="${0##*/}"
 
 COPY_ENV="${COPY_ENV:-1}"
 GENERATE_SECRETS="${GENERATE_SECRETS:-1}"
+# When 1: no domain prompt; BASE_DOMAIN defaults from EDGE_BASE_DOMAIN or "localhost"; ACME_EMAIL tracks BASE_DOMAIN; optional CORS for Traefik panel.
+AUTO_SETUP="${AUTO_SETUP:-1}"
+# When 1: append any keys present in .env.example but missing from .env (does not overwrite values).
+SYNC_ENV_FROM_EXAMPLE="${SYNC_ENV_FROM_EXAMPLE:-1}"
+# When 1: move existing .env to .env.bak.<epoch> then recreate from .env.example (DANGER: treat like fresh install).
+FORCE_ENV_SYNC="${FORCE_ENV_SYNC:-0}"
 DOCKER_PREP="${DOCKER_PREP:-1}"
 INSTALL_DOCKER="${INSTALL_DOCKER:-1}"
 SHOW_CREDENTIALS="${SHOW_CREDENTIALS:-1}"
@@ -93,6 +99,35 @@ try_install_docker() {
   esac
 }
 
+# Append lines from .env.example for keys missing in .env (schema drift / older checkouts). Does not change existing lines.
+sync_missing_keys_from_example() {
+  local example="$1"
+  local envf="$2"
+  [[ "${SYNC_ENV_FROM_EXAMPLE:-1}" == "1" ]] || return 0
+  [[ -f "$example" && -f "$envf" ]] || return 0
+
+  local line key added=0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "${line//[[:space:]]/}" ]] && continue
+    [[ "${line%%[![:space:]]*}" == \#* ]] && continue
+    case "$line" in
+      *=*) ;;
+      *) continue ;;
+    esac
+    key="${line%%=*}"
+    key="${key%"${key##*[![:space:]]}"}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    [[ -z "$key" ]] && continue
+    if ! grep -q "^${key}=" "$envf" 2>/dev/null; then
+      printf '%s\n' "$line" >>"$envf"
+      log "Appended missing key from .env.example: ${key}"
+      added=1
+    fi
+  done <"$example"
+  [[ "$added" -eq 1 ]] || return 0
+}
+
 # Only updates keys that already exist — keeps .env aligned with .env.example (no stray appended variables).
 replace_env_line() {
   local key="$1"
@@ -129,10 +164,10 @@ apply_generated_secrets() {
 
 # Optional host hints (export when running setup.sh):
 #   EDGE_BASE_DOMAIN — if set and BASE_DOMAIN is still example.com, replace BASE_DOMAIN (non-interactive).
-# Derives ACME_EMAIL from BASE_DOMAIN when the value is empty or still the .env.example placeholder.
+# ACME_EMAIL: with AUTO_SETUP=1 always admin@<BASE_DOMAIN> when BASE_DOMAIN is set; else only when empty or admin@domain.com.
 patch_derived_env_keys() {
   local f="$1"
-  local changed=0 bd acme ae
+  local changed=0 bd acme
 
   if [[ -n "${EDGE_BASE_DOMAIN:-}" ]]; then
     bd="$(read_env_var BASE_DOMAIN "$f")"
@@ -144,16 +179,39 @@ patch_derived_env_keys() {
 
   bd="$(read_env_var BASE_DOMAIN "$f")"
   acme="$(read_env_var ACME_EMAIL "$f")"
-  if [[ -n "$bd" && ( -z "$acme" || "$acme" == "admin@domain.com" ) ]]; then
-    replace_env_line ACME_EMAIL "admin@${bd}" "$f"
-    changed=1
+  if [[ -n "$bd" ]]; then
+    if [[ "${AUTO_SETUP:-1}" == "1" ]]; then
+      if [[ "$acme" != "admin@${bd}" ]]; then
+        replace_env_line ACME_EMAIL "admin@${bd}" "$f"
+        changed=1
+      fi
+    elif [[ -z "$acme" || "$acme" == "admin@domain.com" ]]; then
+      replace_env_line ACME_EMAIL "admin@${bd}" "$f"
+      changed=1
+    fi
   fi
 
   [[ "$changed" -eq 1 ]] && return 0
   return 1
 }
 
-# After copying .env.example → .env: one prompt for the operator's real FQDN (non-destructive if left blank).
+# Non-interactive: example.com, empty, or missing BASE_DOMAIN → EDGE_BASE_DOMAIN or localhost (CI / one-shot deploy).
+auto_set_base_domain() {
+  local f="$1"
+  local bd
+  bd="$(read_env_var BASE_DOMAIN "$f")"
+  if [[ -z "$bd" || "$bd" == "example.com" ]]; then
+    if [[ -n "${EDGE_BASE_DOMAIN:-}" ]]; then
+      replace_env_line BASE_DOMAIN "$EDGE_BASE_DOMAIN" "$f"
+      log "BASE_DOMAIN set from EDGE_BASE_DOMAIN=$EDGE_BASE_DOMAIN"
+    else
+      replace_env_line BASE_DOMAIN "localhost" "$f"
+      log "BASE_DOMAIN defaulted to localhost (export EDGE_BASE_DOMAIN for production / public TLS)"
+    fi
+  fi
+}
+
+# After copying .env.example → .env: interactive domain only when AUTO_SETUP=0.
 prompt_user_base_domain_first_install() {
   local f="$1"
   local bd input
@@ -179,6 +237,52 @@ prompt_user_base_domain_first_install() {
   if [[ -n "$input" ]]; then
     replace_env_line BASE_DOMAIN "$input" "$f"
     log "Set BASE_DOMAIN to $input."
+  fi
+}
+
+run_base_domain_setup() {
+  local f="$1"
+  if [[ "${AUTO_SETUP:-1}" == "1" ]]; then
+    auto_set_base_domain "$f"
+  else
+    prompt_user_base_domain_first_install "$f"
+  fi
+}
+
+# Align CORS with default panel hostname (edgecontrol.<BASE_DOMAIN>) when using AUTO_SETUP and a public-ish domain.
+maybe_auto_cors_origin() {
+  local f="$1"
+  [[ "${AUTO_SETUP:-1}" == "1" ]] || return 0
+  [[ -f "$f" ]] || return 0
+  if ! grep -q "^CORS_ORIGIN=" "$f" 2>/dev/null; then
+    return 0
+  fi
+  local bd ph origin
+  bd="$(read_env_var BASE_DOMAIN "$f")"
+  [[ -n "$bd" ]] || return 0
+  if [[ "$bd" == "localhost" || "$bd" == "example.com" ]]; then
+    replace_env_line CORS_ORIGIN "http://127.0.0.1:8080" "$f"
+    log "CORS_ORIGIN set for local panel (loopback :8080)."
+    return 0
+  fi
+  ph="$(read_env_var PANEL_HOST "$f")"
+  if [[ -n "$ph" ]]; then
+    origin="https://${ph}"
+  else
+    origin="https://edgecontrol.${bd}"
+  fi
+  replace_env_line CORS_ORIGIN "$origin" "$f"
+  log "CORS_ORIGIN set to ${origin} (browser origin for Traefik panel)."
+}
+
+warn_localhost_in_production() {
+  local f="$1"
+  [[ -f "$f" ]] || return 0
+  local bd ne
+  bd="$(read_env_var BASE_DOMAIN "$f")"
+  ne="$(read_env_var NODE_ENV "$f")"
+  if [[ "$bd" == "localhost" && "$ne" == "production" ]]; then
+    warn "BASE_DOMAIN is localhost while NODE_ENV=production — use EDGE_BASE_DOMAIN for a real FQDN before exposing the stack."
   fi
 }
 
@@ -285,6 +389,17 @@ ensure_env_for_stack() {
   local mode="${1:-strict}"
   local ENV_EXAMPLE="$ROOT/.env.example"
   local ENV_FILE="$ROOT/.env"
+  local bak
+
+  if [[ "${FORCE_ENV_SYNC:-0}" == "1" ]]; then
+    [[ -f "$ENV_EXAMPLE" ]] || die "FORCE_ENV_SYNC=1 requires $ENV_EXAMPLE"
+    if [[ -f "$ENV_FILE" ]]; then
+      bak="${ENV_FILE}.bak.$(date +%s)"
+      cp "$ENV_FILE" "$bak"
+      rm -f "$ENV_FILE"
+      warn "FORCE_ENV_SYNC=1: existing .env saved as $bak — recreated from .env.example (re-run secrets/patch below)."
+    fi
+  fi
 
   if [[ ! -f "$ENV_FILE" ]]; then
     if [[ "${COPY_ENV:-1}" != "1" ]] || [[ ! -f "$ENV_EXAMPLE" ]]; then
@@ -296,24 +411,40 @@ ensure_env_for_stack() {
     fi
     cp "$ENV_EXAMPLE" "$ENV_FILE"
     log "Created $ENV_FILE from .env.example."
-    prompt_user_base_domain_first_install "$ENV_FILE"
-    if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
-      apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
-      log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana, seed passwords; REDIS_URL set for internal compose)."
+    run_base_domain_setup "$ENV_FILE"
+    if [[ "${GENERATE_SECRETS:-1}" == "1" || "${AUTO_SETUP:-1}" == "1" ]]; then
+      if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
+        apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
+        log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana, seed passwords; REDIS_URL set for internal compose)."
+      else
+        patch_insecure_or_missing_secrets "$ENV_FILE" || true
+        log "AUTO_SETUP=1 with GENERATE_SECRETS=0 — patched weak or missing credentials only."
+      fi
     else
       warn "GENERATE_SECRETS=0 — fill JWT_SECRET, DB_PASSWORD, DATABASE_URL, REDIS_URL, and URLs in $ENV_FILE yourself."
     fi
   else
-    if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
-      if patch_insecure_or_missing_secrets "$ENV_FILE"; then
-        log "Filled missing or default credentials in $ENV_FILE (openssl)."
+    if [[ "${AUTO_SETUP:-1}" == "1" ]]; then
+      auto_set_base_domain "$ENV_FILE"
+    fi
+    if [[ "${GENERATE_SECRETS:-1}" == "1" || "${AUTO_SETUP:-1}" == "1" ]]; then
+      if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
+        if patch_insecure_or_missing_secrets "$ENV_FILE"; then
+          log "Filled missing or default credentials in $ENV_FILE (openssl)."
+        fi
+      else
+        patch_insecure_or_missing_secrets "$ENV_FILE" || true
+        log "AUTO_SETUP=1 with GENERATE_SECRETS=0 — patched weak or missing credentials only."
       fi
     fi
   fi
 
   [[ -f "$ENV_FILE" ]] || return 1
 
+  sync_missing_keys_from_example "$ENV_EXAMPLE" "$ENV_FILE"
   sync_traefik_env_with_example "$ENV_FILE"
+  maybe_auto_cors_origin "$ENV_FILE"
+  warn_localhost_in_production "$ENV_FILE"
   ensure_traefik_static_rendered
 
   if [[ "$mode" == "strict" ]]; then
@@ -628,14 +759,20 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
   ./scripts/${ME} bootstrap
 
   Environment (defaults 1 = on; set to 0 to skip):
-    COPY_ENV, GENERATE_SECRETS, DOCKER_PREP, INSTALL_DOCKER, SHOW_CREDENTIALS
+    COPY_ENV, GENERATE_SECRETS, AUTO_SETUP, SYNC_ENV_FROM_EXAMPLE, DOCKER_PREP, INSTALL_DOCKER, SHOW_CREDENTIALS
+    AUTO_SETUP=1 (default): no domain prompt; BASE_DOMAIN becomes EDGE_BASE_DOMAIN or localhost when empty/example.com;
+      ACME_EMAIL tracks admin@<BASE_DOMAIN>; CORS_ORIGIN aligned to panel (127.0.0.1:8080 for local, else https://edgecontrol.<domain> or PANEL_HOST).
+      Set AUTO_SETUP=0 to restore interactive first-install prompt and conservative ACME_EMAIL derivation only when empty or admin@domain.com.
     GENERATE_SECRETS=1: full|compose|bootstrap create .env from .env.example if missing, then openssl-fill
       weak or empty secrets (JWT under 32 chars, empty DB password, ChangeMe* defaults, etc.) without rotating
-      already-strong values. Set GENERATE_SECRETS=0 to manage .env entirely by hand.
-    EDGE_BASE_DOMAIN (optional): non-interactive installs — if BASE_DOMAIN is still example.com in a fresh .env,
-      set it from this value. Interactive first-time setup asks for the domain instead when stdin is a TTY.
-      ACME_EMAIL becomes admin@<BASE_DOMAIN> when it is still empty or admin@domain.com (see patch_derived_env_keys).
-    Secret generation only edits variables that already exist in .env (copied from .env.example); nothing extra is appended.
+      already-strong values. Set GENERATE_SECRETS=0 to manage .env entirely by hand (AUTO_SETUP=1 still runs patch for weak values).
+    EDGE_BASE_DOMAIN (optional): public FQDN for the stack — used when BASE_DOMAIN would otherwise default to localhost (production / TLS).
+      With AUTO_SETUP=1 there is no TTY prompt; export EDGE_BASE_DOMAIN on CI or VPS installs.
+    SYNC_ENV_FROM_EXAMPLE=1 (default): after .env exists, append any keys from .env.example that are missing (never overwrites values).
+      Set to 0 to disable. This is the lightweight "env migration" — not a full synchroniser.
+    FORCE_ENV_SYNC=1: before bootstrap, backup existing .env to .env.bak.<epoch> and remove it so the next run recreates from .env.example
+      (same as rm .env then full). Default 0. Use when you intentionally want a clean template + regenerated secrets.
+    replace_env_line / patch_insecure only change values for keys already present; new keys come from SYNC_ENV_FROM_EXAMPLE or a fresh copy.
     Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID. Seed email addresses stay
       as in .env unless you edit them (they are not secrets).
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).

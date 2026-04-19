@@ -4,6 +4,7 @@ services:
     container_name: edgecontrol-traefik
     command:
       - --configFile=/etc/traefik/traefik.yml
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@${BASE_DOMAIN:-example.com}}
     environment:
       # Let's Encrypt rejects an empty contact; derive admin@<BASE_DOMAIN> when ACME_EMAIL is unset/blank in .env.
       ACME_EMAIL: ${ACME_EMAIL:-admin@${BASE_DOMAIN:-example.com}}

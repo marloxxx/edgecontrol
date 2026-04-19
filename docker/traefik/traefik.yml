@@ -14,7 +14,8 @@ log:
 
 providers:
   file:
-    filename: /etc/traefik/dynamic.yml
+    # Panel + MinIO: 00-static.yml (render from .env). UI-managed routes: 01-managed.yml (API).
+    directory: /etc/traefik/dynamic.d
     watch: true
   docker:
     endpoint: unix:///var/run/docker.sock

@@ -1,5 +1,12 @@
+import { config as loadDotenv } from 'dotenv'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { PrismaClient, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+
+// Monorepo root `.env` (Compose / setup use the same file).
+const __dirname = dirname(fileURLToPath(import.meta.url))
+loadDotenv({ path: resolve(__dirname, '../../../.env') })
 
 interface RbacSeedUser {
   role: Role
@@ -10,29 +17,47 @@ interface RbacSeedUser {
 const env =
   (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 
-const DEFAULT_SEED_PASSWORD = env.RBAC_SEED_PASSWORD ?? 'ChangeMe123456!'
+function seedBaseDomain(): string {
+  const d = env.BASE_DOMAIN?.trim()
+  return d && d.length > 0 ? d : 'example.com'
+}
+
+function nonEmpty(s: string | undefined): string | undefined {
+  const t = s?.trim()
+  return t ? t : undefined
+}
 
 function getSeedUsers(): RbacSeedUser[] {
+  const d = seedBaseDomain()
+  const DEFAULT_SEED_PASSWORD = nonEmpty(env.RBAC_SEED_PASSWORD) ?? 'ChangeMe123456!'
+
+  const pickEmail = (explicit: string | undefined, adminFallback: string | undefined, local: string) => {
+    return nonEmpty(explicit) ?? nonEmpty(adminFallback) ?? `${local}@${d}`
+  }
+
+  const pickPassword = (...vals: (string | undefined)[]) =>
+    vals.map(nonEmpty).find(Boolean) ?? DEFAULT_SEED_PASSWORD
+
   return [
     {
       role: Role.SUPER_ADMIN,
-      email: env.RBAC_SUPER_ADMIN_EMAIL ?? env.ADMIN_EMAIL ?? 'superadmin@edgecontrol.local',
-      password: env.RBAC_SUPER_ADMIN_PASSWORD ?? env.ADMIN_PASSWORD ?? DEFAULT_SEED_PASSWORD
+      email: pickEmail(env.RBAC_SUPER_ADMIN_EMAIL, env.ADMIN_EMAIL, 'superadmin'),
+      password: pickPassword(env.RBAC_SUPER_ADMIN_PASSWORD, env.ADMIN_PASSWORD)
     },
     {
       role: Role.ADMIN,
-      email: env.RBAC_ADMIN_EMAIL ?? 'admin@edgecontrol.local',
-      password: env.RBAC_ADMIN_PASSWORD ?? DEFAULT_SEED_PASSWORD
+      email: pickEmail(env.RBAC_ADMIN_EMAIL, undefined, 'admin'),
+      password: pickPassword(env.RBAC_ADMIN_PASSWORD)
     },
     {
       role: 'DEVELOPER' as Role,
-      email: env.RBAC_DEVELOPER_EMAIL ?? 'developer@edgecontrol.local',
-      password: env.RBAC_DEVELOPER_PASSWORD ?? DEFAULT_SEED_PASSWORD
+      email: pickEmail(env.RBAC_DEVELOPER_EMAIL, undefined, 'developer'),
+      password: pickPassword(env.RBAC_DEVELOPER_PASSWORD)
     },
     {
       role: Role.VIEWER,
-      email: env.RBAC_VIEWER_EMAIL ?? 'viewer@edgecontrol.local',
-      password: env.RBAC_VIEWER_PASSWORD ?? DEFAULT_SEED_PASSWORD
+      email: pickEmail(env.RBAC_VIEWER_EMAIL, undefined, 'viewer'),
+      password: pickPassword(env.RBAC_VIEWER_PASSWORD)
     }
   ]
 }

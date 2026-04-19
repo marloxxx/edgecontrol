@@ -35,7 +35,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters (use openssl rand -hex 32)'),
   CORS_ORIGIN: z.string().default('*'),
-  TRAEFIK_DYNAMIC_CONFIG_PATH: z.string().default('/traefik-config/dynamic.yml'),
+  TRAEFIK_DYNAMIC_CONFIG_PATH: z.string().default('/traefik-config/dynamic.d/01-managed.yml'),
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().optional()),
   TELEGRAM_CHAT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
   HEALTH_CHECK_INTERVAL_MS: z.coerce.number().int().positive().default(10000),

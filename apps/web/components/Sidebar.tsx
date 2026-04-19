@@ -98,7 +98,7 @@ export function Sidebar() {
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
                   <span>Synced 3s ago</span>
                 </div>
-                <p className="mt-1 text-[11px] text-zinc-500">dynamic.yml → VPS-1</p>
+                <p className="mt-1 text-[11px] text-zinc-500">dynamic.d/01-managed.yml → edge</p>
               </div>
             </div>
 

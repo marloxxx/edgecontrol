@@ -1,0 +1,37 @@
+# Rendered to 00-static.yml by scripts/render-traefik-static.sh (reads .env). Do not edit this template’s Host() lines by hand — use .env + re-run the script.
+http:
+  routers:
+    edgecontrol-panel:
+      rule: Host(`__PANEL_HOST__`)
+      entryPoints:
+        - websecure
+      service: edgecontrol-panel-svc
+      tls:
+        certResolver: letsencrypt
+    edgecontrol-minio-s3:
+      rule: Host(`__MINIO_API_HOST__`)
+      entryPoints:
+        - websecure
+      service: edgecontrol-minio-s3-svc
+      tls:
+        certResolver: letsencrypt
+    edgecontrol-minio-console:
+      rule: Host(`__MINIO_CONSOLE_HOST__`)
+      entryPoints:
+        - websecure
+      service: edgecontrol-minio-console-svc
+      tls:
+        certResolver: letsencrypt
+  services:
+    edgecontrol-panel-svc:
+      loadBalancer:
+        servers:
+          - url: http://web:80
+    edgecontrol-minio-s3-svc:
+      loadBalancer:
+        servers:
+          - url: http://minio:9000
+    edgecontrol-minio-console-svc:
+      loadBalancer:
+        servers:
+          - url: http://minio:9001

@@ -14,7 +14,7 @@ services:
       - "443:443"
     volumes:
       - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml
+      - ./docker/traefik/dynamic.d:/etc/traefik/dynamic.d
       - letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -34,7 +34,7 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://127.0.0.1:${PANEL_PUBLISH_PORT:-8080}}
-      TRAEFIK_DYNAMIC_CONFIG_PATH: /traefik-config/dynamic.yml
+      TRAEFIK_DYNAMIC_CONFIG_PATH: /traefik-config/dynamic.d/01-managed.yml
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
       HEALTH_CHECK_INTERVAL_MS: ${HEALTH_CHECK_INTERVAL_MS:-10000}
@@ -70,7 +70,7 @@ services:
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
-      TRAEFIK_DYNAMIC_CONFIG_PATH: /traefik-config/dynamic.yml
+      TRAEFIK_DYNAMIC_CONFIG_PATH: /traefik-config/dynamic.d/01-managed.yml
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
       HEALTH_CHECK_INTERVAL_MS: ${HEALTH_CHECK_INTERVAL_MS:-10000}
@@ -92,14 +92,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     container_name: edgecontrol-web
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=${TRAEFIK_DOCKER_NETWORK:-${COMPOSE_PROJECT_NAME:-edgecontrol}_internal}"
-      - "traefik.http.routers.edgecontrol-panel.rule=Host(`${PANEL_HOST:-edgecontrol.${BASE_DOMAIN}}`)"
-      - "traefik.http.routers.edgecontrol-panel.entrypoints=websecure"
-      - "traefik.http.routers.edgecontrol-panel.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.edgecontrol-panel.service=edgecontrol-panel-svc"
-      - "traefik.http.services.edgecontrol-panel-svc.loadbalancer.server.port=80"
+    # Panel HTTPS is defined in docker/traefik/dynamic.d/00-static.yml (render from .env — no Docker labels).
     ports:
       - "127.0.0.1:${PANEL_PUBLISH_PORT:-8080}:80"
     depends_on:
@@ -142,6 +135,18 @@ services:
       - migrate
     environment:
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
+      BASE_DOMAIN: ${BASE_DOMAIN:-example.com}
+      RBAC_SEED_PASSWORD: ${RBAC_SEED_PASSWORD:-ChangeMe123456!}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      RBAC_SUPER_ADMIN_EMAIL: ${RBAC_SUPER_ADMIN_EMAIL:-}
+      RBAC_SUPER_ADMIN_PASSWORD: ${RBAC_SUPER_ADMIN_PASSWORD:-}
+      RBAC_ADMIN_EMAIL: ${RBAC_ADMIN_EMAIL:-}
+      RBAC_ADMIN_PASSWORD: ${RBAC_ADMIN_PASSWORD:-}
+      RBAC_DEVELOPER_EMAIL: ${RBAC_DEVELOPER_EMAIL:-}
+      RBAC_DEVELOPER_PASSWORD: ${RBAC_DEVELOPER_PASSWORD:-}
+      RBAC_VIEWER_EMAIL: ${RBAC_VIEWER_EMAIL:-}
+      RBAC_VIEWER_PASSWORD: ${RBAC_VIEWER_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
@@ -165,19 +170,7 @@ services:
       - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=${TRAEFIK_DOCKER_NETWORK:-${COMPOSE_PROJECT_NAME:-edgecontrol}_internal}"
-      - "traefik.http.routers.edgecontrol-minio-s3.rule=Host(`${MINIO_API_HOST:-s3.${BASE_DOMAIN}}`)"
-      - "traefik.http.routers.edgecontrol-minio-s3.entrypoints=websecure"
-      - "traefik.http.routers.edgecontrol-minio-s3.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.edgecontrol-minio-s3.service=edgecontrol-minio-s3-svc"
-      - "traefik.http.services.edgecontrol-minio-s3-svc.loadbalancer.server.port=9000"
-      - "traefik.http.routers.edgecontrol-minio-console.rule=Host(`${MINIO_CONSOLE_HOST:-minio.${BASE_DOMAIN}}`)"
-      - "traefik.http.routers.edgecontrol-minio-console.entrypoints=websecure"
-      - "traefik.http.routers.edgecontrol-minio-console.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.edgecontrol-minio-console.service=edgecontrol-minio-console-svc"
-      - "traefik.http.services.edgecontrol-minio-console-svc.loadbalancer.server.port=9001"
+    # MinIO HTTPS hosts are in docker/traefik/dynamic.d/00-static.yml (render from .env — no Docker labels).
     networks:
       - internal
 

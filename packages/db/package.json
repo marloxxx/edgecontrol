@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^16.4.7",
     "prisma": "^6.8.2",
     "tsx": "^4.19.2"
   }

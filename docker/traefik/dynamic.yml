@@ -1,4 +1,0 @@
-# Edgecontrol — Traefik file provider. The API overwrites this file with managed HTTP routes.
-# Traefik v3.6 rejects empty `http.routers` / `http.services` / `http.middlewares` maps; use a bare
-# `{}` until there is at least one route (then the API writes a non-empty `http` tree).
-{}

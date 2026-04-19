@@ -61,7 +61,7 @@ export class VersionService {
     await this.auditService.log({
       actor: actor.email,
       action: AuditAction.UPDATE,
-      target: 'config:dynamic.yml',
+      target: 'config:dynamic.d/01-managed.yml',
       newValue: { versionId: version.id }
     })
 

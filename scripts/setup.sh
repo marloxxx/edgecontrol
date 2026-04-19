@@ -26,6 +26,16 @@ ensure_docker_on_path() {
   export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin${PATH:+:$PATH}"
 }
 
+ensure_traefik_static_rendered() {
+  local s="$ROOT/scripts/render-traefik-static.sh"
+  [[ -f "$s" ]] || return 0
+  if [[ -f "$ROOT/.env" ]]; then
+    bash "$s"
+  else
+    warn "No .env — using checked-in docker/traefik/dynamic.d/00-static.yml defaults (run ./scripts/render-traefik-static.sh after creating .env)."
+  fi
+}
+
 require_docker_cli() {
   ensure_docker_on_path
   if ! command -v docker >/dev/null 2>&1; then
@@ -128,7 +138,7 @@ apply_generated_secrets() {
 # Derives ACME_EMAIL from BASE_DOMAIN when the file still has the .env.example placeholder.
 patch_derived_env_keys() {
   local f="$1"
-  local changed=0 bd acme
+  local changed=0 bd acme ae
 
   if [[ -n "${EDGE_BASE_DOMAIN:-}" ]]; then
     bd="$(read_env_var BASE_DOMAIN "$f")"
@@ -143,6 +153,14 @@ patch_derived_env_keys() {
   if [[ -n "$bd" && ( -z "$acme" || "$acme" == "admin@domain.com" ) ]]; then
     replace_env_line ACME_EMAIL "admin@${bd}" "$f"
     changed=1
+  fi
+
+  if [[ -n "$bd" ]]; then
+    ae="$(read_env_var ADMIN_EMAIL "$f")"
+    if [[ -z "$ae" ]]; then
+      replace_env_line ADMIN_EMAIL "admin@${bd}" "$f"
+      changed=1
+    fi
   fi
 
   [[ "$changed" -eq 1 ]] && return 0
@@ -336,7 +354,7 @@ print_credentials_summary() {
     [[ -n "$v" ]] && printf '  %-30s %s\n' "$key" "$v"
   done
   printf '  %-30s %s\n' "→ if unset" "Compose uses 127.0.0.1:3001 (API) and :8080 (panel)"
-  printf '\n%s\n' "Traefik / TLS (file + Docker labels — panel & MinIO; API writes dynamic.yml; Let’s Encrypt)"
+  printf '\n%s\n' "Traefik / TLS (file: dynamic.d/00-static.yml + 01-managed.yml; Docker provider optional; Let’s Encrypt)"
   v="$(read_env_var ACME_EMAIL "$f")"
   printf '  %-30s %s\n' "ACME_EMAIL" "${v:-"(empty)"}"
   v="$(read_env_var BASE_DOMAIN "$f")"
@@ -507,8 +525,9 @@ cmd_compose() {
   ensure_env_for_stack strict
   warn_letsencrypt_placeholder_domain
   ensure_public_network
+  ensure_traefik_static_rendered
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build "$@")
-  echo "Stack started. See docker-compose.yml for services and Traefik labels."
+  echo "Stack started. See docker-compose.yml; Traefik file routes in docker/traefik/dynamic.d/."
 }
 
 cmd_db() {
@@ -559,6 +578,8 @@ cmd_full() {
   ensure_public_network
   echo "=== Edgecontrol full deploy (Docker — $ROOT) ==="
 
+  echo ">>> Rendering Traefik static routes from .env..."
+  ensure_traefik_static_rendered
   echo ">>> Building images and starting containers..."
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build)
 
@@ -591,8 +612,8 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).
 
 Deploy commands (stack = Docker only; no host pnpm):
-  ./scripts/${ME} full      — .env + secrets if needed, docker compose up --build + Prisma migrate
-  ./scripts/${ME} compose   — .env + secrets if needed, docker compose up -d --build
+  ./scripts/${ME} full      — .env + secrets if needed, render Traefik static routes, docker compose up --build + Prisma migrate
+  ./scripts/${ME} compose   — .env + secrets if needed, render Traefik static routes, docker compose up -d --build
   ./scripts/${ME} db        — prisma migrate deploy (host pnpm if installed, else Docker migrate service)
   ./scripts/${ME} db reset  — prisma migrate reset --force (DANGER: drops all DB data, re-applies migrations)
   ./scripts/${ME} reset     — same as db reset
@@ -603,6 +624,9 @@ Deploy commands (stack = Docker only; no host pnpm):
                             — compose down --volumes; optional image / public network removal (see clean --help)
 
   ./scripts/${ME} help      — this text
+
+Other:
+  ./scripts/render-traefik-static.sh — rewrite docker/traefik/dynamic.d/00-static.yml from .env (panel + MinIO hosts)
 EOF
 }
 
@@ -659,6 +683,7 @@ cmd_bootstrap() {
 Next steps:
   • ./scripts/${ME} full      # compose + migrate (Docker only)
   • ./scripts/${ME} compose
+  • After editing BASE_DOMAIN / PANEL_HOST / MINIO_* in .env: ./scripts/render-traefik-static.sh && docker compose up -d --force-recreate traefik
   • Local dev: pnpm install && pnpm --filter @edgecontrol/db prisma:generate && pnpm dev
 EOF
 }

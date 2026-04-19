@@ -21,7 +21,7 @@ pg_dump "${DATABASE_URL}" > "${BACKUP_ABS}/db-${TIMESTAMP}.sql"
 
 echo "Copying Traefik configs..."
 cp ./docker/traefik/traefik.yml "${BACKUP_ABS}/traefik-static-${TIMESTAMP}.yml"
-cp ./docker/traefik/dynamic.yml "${BACKUP_ABS}/dynamic-${TIMESTAMP}.yml"
+tar -czf "${BACKUP_ABS}/traefik-dynamic.d-${TIMESTAMP}.tar.gz" -C ./docker/traefik dynamic.d
 
 if docker volume inspect "${MINIO_VOLUME}" &>/dev/null; then
   echo "Archiving MinIO data volume (${MINIO_VOLUME})..."

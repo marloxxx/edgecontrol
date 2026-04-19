@@ -1,0 +1,37 @@
+# Generated for BASE_DOMAIN=example.com (default). Re-run: ./scripts/render-traefik-static.sh
+http:
+  routers:
+    edgecontrol-panel:
+      rule: Host(`edgecontrol.example.com`)
+      entryPoints:
+        - websecure
+      service: edgecontrol-panel-svc
+      tls:
+        certResolver: letsencrypt
+    edgecontrol-minio-s3:
+      rule: Host(`s3.example.com`)
+      entryPoints:
+        - websecure
+      service: edgecontrol-minio-s3-svc
+      tls:
+        certResolver: letsencrypt
+    edgecontrol-minio-console:
+      rule: Host(`minio.example.com`)
+      entryPoints:
+        - websecure
+      service: edgecontrol-minio-console-svc
+      tls:
+        certResolver: letsencrypt
+  services:
+    edgecontrol-panel-svc:
+      loadBalancer:
+        servers:
+          - url: http://web:80
+    edgecontrol-minio-s3-svc:
+      loadBalancer:
+        servers:
+          - url: http://minio:9000
+    edgecontrol-minio-console-svc:
+      loadBalancer:
+        servers:
+          - url: http://minio:9001

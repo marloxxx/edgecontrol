@@ -14,7 +14,7 @@ log:
 
 providers:
   file:
-    directory: /etc/traefik/dynamicc.d
+    directory: /etc/traefik/dynamic.d
     watch: true
   docker:
     endpoint: unix:///var/run/docker.sock

@@ -1,7 +1,4 @@
-# Traefik static configuration (read-only in the container).
-# Both providers must live here: when using --configFile, CLI --providers.docker flags are ignored if
-# the static file already defines `providers` (file-only → no Docker routers → 404 on labelled hosts).
-# Set DOCKER_INTERNAL_NETWORK on the container (compose interpolates COMPOSE_PROJECT_NAME → e.g. edgecontrol_internal).
+# Traefik static configuration (read-only in the container). Routes come only from `providers.file` → `dynamic.d/`.
 global:
   checkNewVersion: true
   sendAnonymousUsage: false
@@ -16,10 +13,6 @@ providers:
   file:
     directory: /etc/traefik/dynamic.d
     watch: true
-  docker:
-    endpoint: unix:///var/run/docker.sock
-    exposedByDefault: false
-    network: ${DOCKER_INTERNAL_NETWORK}
 
 entryPoints:
   # HTTP-01 uses this entrypoint. Do not set `allowACMEByPass: true` here unless you deliberately override

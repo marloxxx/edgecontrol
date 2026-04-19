@@ -1,8 +1,7 @@
-# Optional overlay: attach Traefik-labelled services to an existing external Docker network (often named "proxy").
-# Typical when another Traefik or Licentra-style stack already publishes :80/:443 on that network.
+# Optional overlay: attach Traefik, web, and minio to an existing external Docker network (often named "proxy").
+# Typical when another reverse proxy already publishes :80/:443 on that network.
 #
 # Prereqs: docker network create proxy   (or adjust the network name below)
-# .env:     TRAEFIK_DOCKER_NETWORK=proxy
 #
 # Up:      docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
 # Recreate: docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d --force-recreate traefik web minio

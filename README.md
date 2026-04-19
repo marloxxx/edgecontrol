@@ -118,7 +118,7 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 
 **Panel and API (no Traefik Docker labels):** open **http://127.0.0.1:8080** for the panel (default **`PANEL_PUBLISH_PORT`**). The panel image’s **nginx** forwards **`/trpc`** and **`/api`** to **`http://api:3000`**, so the SPA uses **same-origin** URLs by default (do not set empty **`VITE_API_URL`** / **`PUBLIC_API_URL`** keys in `.env`). For a custom API base in the built bundle, use **`docker compose build web --build-arg VITE_API_URL=…`**. Set **`CORS_ORIGIN`** to the panel origin the browser uses (for example `http://YOUR_VPS_IP:8080` when not on localhost). Direct API checks: **http://127.0.0.1:3001** (**`API_PUBLISH_PORT`**). Remote loopback-only access: **SSH port forwarding** or publish on **`0.0.0.0`** and firewall. **MinIO** stays on **127.0.0.1:9000** / **:9001**. Local **`pnpm dev`** defaults the tRPC client to **http://localhost:3001** unless **`VITE_API_URL`** is set.
 
-**Traefik (file provider only):** reads `./docker/traefik/dynamic.yml`, which the **API rewrites** when you publish **managed** routes from the panel. Those routes use **HTTPS on :443** with **`ACME_EMAIL`** and Let’s Encrypt. Traefik does **not** use the Docker socket in this compose file.
+**Traefik (file provider only):** reads `./docker/traefik/dynamic.yml`, which the **API rewrites** when you publish **managed** routes from the panel. Until then the repo ships a bare **`{}`** (Traefik **v3.6** rejects empty `http.routers` / `http.services` / `http.middlewares` blocks). Managed routes use **HTTPS on :443** with **`ACME_EMAIL`** and Let’s Encrypt. Traefik does **not** use the Docker socket in this compose file.
 
 **Managed routes: “404” or no certificate:** routers from `dynamic.yml` use **`websecure` only**; **http://** on :80 redirects to **https://** on :443. If **https://** 404s, the **Host** header must match the domain on the service record, DNS must point here, and Traefik must be running (`docker compose ps`). Recreate after config changes: `docker compose up -d --force-recreate traefik`.
 
@@ -144,7 +144,7 @@ The Compose file runs the **edge**, **app**, and **observability** roles on one 
 | Grafana → Prometheus | `http://prometheus:9090` in provisioning. | Same hostname if both run in one observability stack; otherwise use the private Prometheus URL. |
 | Host ports **9090** / **3010** | Published for local access; convenient for laptops. | Prefer binding to a **private interface**, removing public mappings, or firewall rules so Prometheus and Grafana are not exposed on the internet. |
 
-Traefik load balancer health checks and the worker use **`/api/health`** (see `healthPath` on services). The example `dynamic.yml` matches that path.
+Traefik load balancer health checks and the worker use **`/api/health`** (see `healthPath` on services). The checked-in `dynamic.yml` is **`{}`** until the API writes routes.
 
 ### Metrics and Traefik
 

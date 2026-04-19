@@ -25,8 +25,8 @@ export class TraefikService {
 
   buildConfig(routes: RouteConfig[]) {
     if (routes.length === 0) {
-      // Traefik v3.6+: empty http.routers / http.services / http.middlewares are invalid as standalone maps.
-      return { http: {} }
+      // Traefik v3.6+: do not emit `http` with empty routers/services/middlewares (file provider rejects it).
+      return {}
     }
 
     const middlewares: Record<string, unknown> = {}

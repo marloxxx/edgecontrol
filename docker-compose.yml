@@ -5,7 +5,8 @@ services:
     command:
       - --configFile=/etc/traefik/traefik.yml
     environment:
-      ACME_EMAIL: ${ACME_EMAIL}
+      # Let's Encrypt rejects an empty contact; derive admin@<BASE_DOMAIN> when ACME_EMAIL is unset/blank in .env.
+      ACME_EMAIL: ${ACME_EMAIL:-admin@${BASE_DOMAIN:-example.com}}
       # Optional TRAEFIK_DOCKER_NETWORK + docker-compose.proxy.yml — README (Docker Compose).
       DOCKER_INTERNAL_NETWORK: ${TRAEFIK_DOCKER_NETWORK:-${COMPOSE_PROJECT_NAME:-edgecontrol}_internal}
       DOCKER_API_VERSION: "1.47"

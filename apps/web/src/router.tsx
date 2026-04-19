@@ -9,7 +9,7 @@ import {
   useNavigate
 } from '@tanstack/react-router'
 
-import { ACCESS_TOKEN_KEY } from '@/lib/auth-storage'
+import { readAccessToken, readRefreshToken } from '@/lib/auth-storage'
 import { AlertsPage } from '@/src/features/alerts'
 import { LoginPage } from '@/src/features/auth'
 import { HistoryPage } from '@/src/features/history'
@@ -47,7 +47,7 @@ const loginRoute = createRoute({
   }),
   beforeLoad: () => {
     if (typeof window === 'undefined') return
-    if (sessionStorage.getItem(ACCESS_TOKEN_KEY)) {
+    if (readAccessToken() || readRefreshToken()) {
       throw redirect({ to: '/overview' })
     }
   },
@@ -59,7 +59,7 @@ const appLayoutRoute = createRoute({
   id: 'app',
   beforeLoad: ({ location }) => {
     if (typeof window === 'undefined') return
-    if (!sessionStorage.getItem(ACCESS_TOKEN_KEY)) {
+    if (!readAccessToken() && !readRefreshToken()) {
       throw redirect({
         to: '/login',
         search: { redirect: location.pathname }

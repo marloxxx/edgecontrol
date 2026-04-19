@@ -34,6 +34,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters (use openssl rand -hex 32)'),
+  /** Optional; when unset, refresh tokens are signed with JWT_SECRET (set a separate secret in production). */
+  JWT_REFRESH_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   CORS_ORIGIN: z.string().default('*'),
   TRAEFIK_DYNAMIC_CONFIG_PATH: z.string().default('/traefik-config/dynamic.d/01-managed.yml'),
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().optional()),

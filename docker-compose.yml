@@ -37,6 +37,7 @@ services:
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://127.0.0.1:${PANEL_PUBLISH_PORT:-8080}}
       TRAEFIK_DYNAMIC_CONFIG_PATH: /traefik-config/dynamic.d/01-managed.yml
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}

@@ -10,10 +10,21 @@ import { PrismaService } from '../prisma/prisma.service'
 
 const RATE_WINDOW_MS = 60_000
 
+/** Short-lived access JWT; session length is extended via refresh token. */
+const ACCESS_TOKEN_EXPIRES_IN = '15m'
+/** Refresh token lifetime — keeps users signed in without widening access-token exposure. */
+const REFRESH_TOKEN_EXPIRES_IN = '30d'
+
 interface AccessTokenPayload {
   sub: string
   email: string
   role: string
+  typ?: string
+}
+
+interface RefreshTokenPayload {
+  sub: string
+  typ?: string
 }
 
 @Injectable()
@@ -21,6 +32,34 @@ export class AuthService {
   private readonly loginAttemptTracker = new Map<string, number[]>()
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  private get refreshSecret(): string {
+    return env.JWT_REFRESH_SECRET ?? env.JWT_SECRET
+  }
+
+  private signAccessToken(user: { id: string; email: string; role: string }): string {
+    return jwt.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        typ: 'access'
+      },
+      env.JWT_SECRET,
+      { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+    )
+  }
+
+  private signRefreshToken(userId: string): string {
+    return jwt.sign(
+      {
+        sub: userId,
+        typ: 'refresh'
+      },
+      this.refreshSecret,
+      { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
+    )
+  }
 
   async login(email: string, password: string) {
     this.enforceRateLimit(email)
@@ -43,23 +82,45 @@ export class AuthService {
       data: { lastLoginAt: new Date() }
     })
 
-    const token = jwt.sign(
-      {
-        sub: user.id,
-        email: user.email,
-        role: user.role
-      },
-      env.JWT_SECRET,
-      { expiresIn: '1h' }
-    )
+    const accessToken = this.signAccessToken(user)
+    const refreshToken = this.signRefreshToken(user.id)
 
     return {
-      token,
+      token: accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
         role: user.role
       }
+    }
+  }
+
+  async refresh(refreshToken: string) {
+    try {
+      const decoded = jwt.verify(refreshToken, this.refreshSecret) as jwt.JwtPayload & RefreshTokenPayload
+      if (decoded.typ !== 'refresh') {
+        throw new UnauthorizedException('Invalid refresh token')
+      }
+      const id = decoded.sub
+      if (typeof id !== 'string') {
+        throw new UnauthorizedException('Invalid refresh token')
+      }
+
+      const user = await this.prisma.user.findUnique({ where: { id } })
+      if (!user) {
+        throw new UnauthorizedException('Invalid refresh token')
+      }
+
+      return {
+        token: this.signAccessToken(user),
+        refreshToken
+      }
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        throw err
+      }
+      throw new UnauthorizedException('Invalid or expired session')
     }
   }
 
@@ -78,6 +139,12 @@ export class AuthService {
   verifyAccessToken(token: string): { id: string; email: string; role: string } {
     try {
       const decoded = jwt.verify(token, env.JWT_SECRET) as jwt.JwtPayload & AccessTokenPayload
+      if (decoded.typ === 'refresh') {
+        throw new UnauthorizedException('Invalid token type')
+      }
+      if (decoded.typ !== undefined && decoded.typ !== 'access') {
+        throw new UnauthorizedException('Invalid token type')
+      }
       const id = decoded.sub
       const email = decoded.email
       const role = decoded.role

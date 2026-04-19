@@ -10,10 +10,17 @@ import {
   type ReactNode
 } from 'react'
 import type { Permission, Role } from '@/lib/types'
-import { ACCESS_TOKEN_KEY } from '@/lib/auth-storage'
+import {
+  AUTH_TOKENS_UPDATED_EVENT,
+  clearAuthTokens,
+  needsAuthBootstrap,
+  persistAuthTokens,
+  readAccessToken,
+  readValidAccessTokenOrNull
+} from '@/lib/auth-storage'
 import { hasPermission as rbacCheck, mapApiRoleToUi } from '@/lib/rbac'
 import type { Permission as TrpcPermission } from '@edgecontrol/trpc'
-import { queryClient, trpc } from '@/src/lib/trpc'
+import { queryClient, refreshSessionTokens, trpc } from '@/src/lib/trpc'
 
 interface AuthUser {
   id: string
@@ -26,47 +33,69 @@ interface AuthContextValue {
   user: AuthUser | null | undefined
   isAuthenticated: boolean
   isLoadingSession: boolean
+  isBootstrapping: boolean
   role: Role
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, rememberMe: boolean) => Promise<void>
   logout: () => void
   hasPermission: (permission: Permission) => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-function readStoredToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return sessionStorage.getItem(ACCESS_TOKEN_KEY)
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => readStoredToken())
+  const [token, setToken] = useState<string | null>(() => readValidAccessTokenOrNull())
+  const [bootstrapDone, setBootstrapDone] = useState(() => !needsAuthBootstrap())
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     enabled: Boolean(token),
     retry: false
   })
 
-  const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: async (data) => {
-      sessionStorage.setItem(ACCESS_TOKEN_KEY, data.token)
-      setToken(data.token)
-      await queryClient.invalidateQueries()
-    }
-  })
+  const loginMutation = trpc.auth.login.useMutation()
 
   const logout = useCallback(() => {
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+    clearAuthTokens()
     setToken(null)
     queryClient.clear()
   }, [])
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      await loginMutation.mutateAsync({ email, password })
+    async (email: string, password: string, rememberMe: boolean) => {
+      const data = await loginMutation.mutateAsync({ email, password })
+      persistAuthTokens(data.token, data.refreshToken, rememberMe)
+      setToken(data.token)
+      await queryClient.invalidateQueries()
     },
     [loginMutation]
   )
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      setToken(readAccessToken())
+    }
+    window.addEventListener(AUTH_TOKENS_UPDATED_EVENT, syncFromStorage)
+    return () => window.removeEventListener(AUTH_TOKENS_UPDATED_EVENT, syncFromStorage)
+  }, [])
+
+  useEffect(() => {
+    if (bootstrapDone) return
+    let cancelled = false
+    void (async () => {
+      try {
+        await refreshSessionTokens()
+      } catch {
+        if (!cancelled) {
+          clearAuthTokens()
+          setToken(null)
+        }
+      } finally {
+        if (!cancelled) setBootstrapDone(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [bootstrapDone])
 
   useEffect(() => {
     if (!token) return
@@ -95,13 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       user: user ?? undefined,
       isAuthenticated: Boolean(token && user),
-      isLoadingSession,
+      isLoadingSession: isLoadingSession || !bootstrapDone,
+      isBootstrapping: !bootstrapDone,
       role,
       login,
       logout,
       hasPermission
     }),
-    [token, user, isLoadingSession, role, login, logout, hasPermission]
+    [token, user, isLoadingSession, bootstrapDone, role, login, logout, hasPermission]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

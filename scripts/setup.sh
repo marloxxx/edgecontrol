@@ -348,11 +348,10 @@ patch_insecure_or_missing_secrets() {
     changed=1
   fi
 
-  # Single seed password for Prisma RBAC users (see packages/db/prisma/seeds/rbac.seed.ts). Compose defaults
-  # to ChangeMe123456! when unset — we persist a random value so login is known and consistent.
+  # Dev-friendly default for Prisma RBAC seed users (see packages/db/prisma/seeds/rbac.seed.ts and docker-compose).
   v="$(read_env_var RBAC_SEED_PASSWORD "$f")"
-  if [[ -z "$v" || "$v" == "ChangeMe123456!" ]]; then
-    np=$(openssl rand -hex 16)
+  if [[ -z "$v" ]]; then
+    np='ChangeMe123456!'
     if grep -q "^RBAC_SEED_PASSWORD=" "$f" 2>/dev/null; then
       replace_env_line RBAC_SEED_PASSWORD "$np" "$f"
     else
@@ -412,7 +411,7 @@ ensure_env_for_stack() {
     if [[ "${GENERATE_SECRETS:-1}" == "1" || "${AUTO_SETUP:-1}" == "1" ]]; then
       if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
         apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
-        log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana; REDIS_URL set for internal compose). RBAC seed password is set by the openssl patch when needed."
+        log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana; REDIS_URL set for internal compose). RBAC seed password defaults to ChangeMe123456! when unset."
       fi
     else
       warn "GENERATE_SECRETS=0 — fill JWT_SECRET, DB_PASSWORD, DATABASE_URL, REDIS_URL, and URLs in $ENV_FILE yourself."
@@ -773,7 +772,7 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
       (same as rm .env then full). Default 0. Use when you intentionally want a clean template + regenerated secrets.
     replace_env_line / patch_insecure only change values for keys already present; new keys come from SYNC_ENV_FROM_EXAMPLE or a fresh copy.
     Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
-    Prisma seed users default to <role>@<BASE_DOMAIN>; RBAC_SEED_PASSWORD is auto-set when empty or still the placeholder.
+    Prisma seed users default to <role>@<BASE_DOMAIN>; RBAC_SEED_PASSWORD is set to ChangeMe123456! when empty (override for production).
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).
 
 Deploy commands (stack = Docker only; no host pnpm):

@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { PrismaClient, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
-// Monorepo root `.env` (Compose / setup use the same file).
+// Monorepo root `.env` (same file as Docker Compose / setup). From `packages/db/prisma/seeds` → four levels up.
 const __dirname = dirname(fileURLToPath(import.meta.url))
-loadDotenv({ path: resolve(__dirname, '../../../.env') })
+loadDotenv({ path: resolve(__dirname, '../../../../.env') })
 
 interface RbacSeedUser {
   role: Role
@@ -19,7 +19,7 @@ const env =
 
 function seedBaseDomain(): string {
   const d = env.BASE_DOMAIN?.trim()
-  return d && d.length > 0 ? d : 'example.com'
+  return d && d.length > 0 ? d : 'ptsi.co.id'
 }
 
 function nonEmpty(s: string | undefined): string | undefined {

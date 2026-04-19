@@ -207,6 +207,9 @@ importers:
       '@trpc/react-query':
         specifier: ^11.0.0-rc.446
         version: 11.16.0(@tanstack/react-query@5.99.0(react@19.2.4))(@trpc/client@11.16.0(@trpc/server@11.16.0(typescript@5.7.3))(typescript@5.7.3))(@trpc/server@11.16.0(typescript@5.7.3))(react@19.2.4)(typescript@5.7.3)
+      '@trpc/server':
+        specifier: ^11.0.0-rc.446
+        version: 11.16.0(typescript@5.7.3)
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.24(postcss@8.5.6)

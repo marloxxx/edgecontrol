@@ -1,4 +1,5 @@
-import { INestApplication } from '@nestjs/common'
+import { HttpException, INestApplication } from '@nestjs/common'
+import { TRPCError } from '@trpc/server'
 import { createAppRouter } from '@edgecontrol/trpc/server'
 import type { RouterContext } from '@edgecontrol/trpc'
 
@@ -21,6 +22,47 @@ function toJsonDate<T>(record: T): T {
   ) as T
 }
 
+function httpExceptionMessage(body: string | object, fallback: string): string {
+  if (typeof body === 'string') return body
+  if (typeof body === 'object' && body !== null && 'message' in body) {
+    const m = (body as { message: unknown }).message
+    if (Array.isArray(m)) return m.join(', ')
+    if (typeof m === 'string') return m
+  }
+  return fallback
+}
+
+function rethrowNestHttpAsTrpc(err: unknown): never {
+  if (!(err instanceof HttpException)) {
+    throw err
+  }
+  const status = err.getStatus()
+  const message = httpExceptionMessage(err.getResponse(), err.message)
+  switch (status) {
+    case 401:
+      throw new TRPCError({ code: 'UNAUTHORIZED', message })
+    case 403:
+      throw new TRPCError({ code: 'FORBIDDEN', message })
+    case 404:
+      throw new TRPCError({ code: 'NOT_FOUND', message })
+    case 400:
+      throw new TRPCError({ code: 'BAD_REQUEST', message })
+    default:
+      if (status >= 500) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message })
+      }
+      throw new TRPCError({ code: 'BAD_REQUEST', message })
+  }
+}
+
+async function withTrpcHttpErrors<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (err) {
+    rethrowNestHttpAsTrpc(err)
+  }
+}
+
 export function buildAppRouter(app: INestApplication) {
   const serviceService = app.get(ServiceService)
   const nodeService = app.get(NodeService)
@@ -33,7 +75,8 @@ export function buildAppRouter(app: INestApplication) {
 
   return createAppRouter({
     auth: {
-      login: (email, password) => authService.login(email, password),
+      login: (email, password) => withTrpcHttpErrors(() => authService.login(email, password)),
+      refresh: (refreshToken) => withTrpcHttpErrors(() => authService.refresh(refreshToken)),
       me: (ctx) => authService.me(ctx)
     },
     node: {

@@ -52,7 +52,11 @@ export interface AppRouterDeps {
     setRateLimit: (id: string, avg: number, burst: number, actor: RouterUser) => Promise<any>
   }
   auth: {
-    login: (email: string, password: string) => Promise<{ token: string; user: { id: string; email: string; role: string } }>
+    login: (
+      email: string,
+      password: string
+    ) => Promise<{ token: string; refreshToken: string; user: { id: string; email: string; role: string } }>
+    refresh: (refreshToken: string) => Promise<{ token: string; refreshToken: string }>
     me: (ctx: RouterContext) => Promise<{ id: string; email: string; role: string } | null>
   }
   overview: {
@@ -103,6 +107,9 @@ export function createAppRouter(deps: AppRouterDeps) {
       login: publicProcedure
         .input(z.object({ email: z.string().email(), password: z.string().min(8) }))
         .mutation(({ input }) => deps.auth.login(input.email, input.password)),
+      refresh: publicProcedure
+        .input(z.object({ refreshToken: z.string().min(1) }))
+        .mutation(({ input }) => deps.auth.refresh(input.refreshToken)),
       me: publicProcedure.query(({ ctx }) => deps.auth.me(ctx))
     }),
     overview: t.router({

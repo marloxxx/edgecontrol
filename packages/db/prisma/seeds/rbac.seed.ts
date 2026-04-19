@@ -19,7 +19,8 @@ const env =
 
 function seedBaseDomain(): string {
   const d = env.BASE_DOMAIN?.trim()
-  return d && d.length > 0 ? d : 'ptsi.co.id'
+  // Keep in sync with `.env.example` and `docker-compose.yml` migrate service default.
+  return d && d.length > 0 ? d : 'example.com'
 }
 
 function nonEmpty(s: string | undefined): string | undefined {
@@ -32,7 +33,8 @@ function getSeedUsers(): RbacSeedUser[] {
   const DEFAULT_SEED_PASSWORD = nonEmpty(env.RBAC_SEED_PASSWORD) ?? 'ChangeMe123456!'
 
   const pickEmail = (explicit: string | undefined, adminFallback: string | undefined, local: string) => {
-    return nonEmpty(explicit) ?? nonEmpty(adminFallback) ?? `${local}@${d}`
+    const raw = nonEmpty(explicit) ?? nonEmpty(adminFallback) ?? `${local}@${d}`
+    return raw.toLowerCase()
   }
 
   const pickPassword = (...vals: (string | undefined)[]) =>

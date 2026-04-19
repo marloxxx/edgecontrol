@@ -148,11 +148,17 @@ apply_generated_secrets() {
     warn "openssl not found — cannot generate secrets. Install OpenSSL or set values in $f manually."
     return 1
   fi
-  local jwt dbpw minio_pw
+  local jwt jwt_refresh dbpw minio_pw
   jwt=$(openssl rand -hex 32)
+  jwt_refresh=$(openssl rand -hex 32)
   dbpw=$(openssl rand -hex 24)
   minio_pw=$(openssl rand -hex 24)
   replace_env_line JWT_SECRET "$jwt" "$f"
+  if grep -q "^JWT_REFRESH_SECRET=" "$f" 2>/dev/null; then
+    replace_env_line JWT_REFRESH_SECRET "$jwt_refresh" "$f"
+  else
+    printf '\nJWT_REFRESH_SECRET=%s\n' "$jwt_refresh" >>"$f"
+  fi
   replace_env_line DB_PASSWORD "$dbpw" "$f"
   replace_env_line DATABASE_URL "postgresql://admin:${dbpw}@db:5432/edgecontrol" "$f"
   replace_env_line REDIS_URL "redis://redis:6379" "$f"
@@ -310,7 +316,7 @@ patch_insecure_or_missing_secrets() {
   if ! command -v openssl >/dev/null 2>&1; then
     v="$(read_env_var JWT_SECRET "$f")"
     if [[ -z "$v" || ${#v} -lt 32 || "$v" == "$JWT_SECRET_PLACEHOLDER" ]]; then
-      warn "openssl not found — cannot auto-fill JWT_SECRET / DB_PASSWORD in $f"
+      warn "openssl not found — cannot auto-fill JWT_SECRET / JWT_REFRESH_SECRET / DB_PASSWORD in $f"
     fi
     return 1
   fi
@@ -318,6 +324,16 @@ patch_insecure_or_missing_secrets() {
   v="$(read_env_var JWT_SECRET "$f")"
   if [[ -z "$v" || ${#v} -lt 32 || "$v" == "$JWT_SECRET_PLACEHOLDER" ]]; then
     replace_env_line JWT_SECRET "$(openssl rand -hex 32)" "$f"
+    changed=1
+  fi
+
+  v="$(read_env_var JWT_REFRESH_SECRET "$f")"
+  if [[ -z "$v" || ${#v} -lt 32 ]]; then
+    if grep -q "^JWT_REFRESH_SECRET=" "$f" 2>/dev/null; then
+      replace_env_line JWT_REFRESH_SECRET "$(openssl rand -hex 32)" "$f"
+    else
+      printf '\nJWT_REFRESH_SECRET=%s\n' "$(openssl rand -hex 32)" >>"$f"
+    fi
     changed=1
   fi
 
@@ -411,10 +427,10 @@ ensure_env_for_stack() {
     if [[ "${GENERATE_SECRETS:-1}" == "1" || "${AUTO_SETUP:-1}" == "1" ]]; then
       if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
         apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
-        log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana; REDIS_URL set for internal compose). RBAC seed password defaults to ChangeMe123456! when unset."
+        log "Generated secrets in $ENV_FILE (JWT, JWT_REFRESH_SECRET, DB, MinIO, Grafana; REDIS_URL set for internal compose). RBAC seed password defaults to ChangeMe123456! when unset."
       fi
     else
-      warn "GENERATE_SECRETS=0 — fill JWT_SECRET, DB_PASSWORD, DATABASE_URL, REDIS_URL, and URLs in $ENV_FILE yourself."
+      warn "GENERATE_SECRETS=0 — fill JWT_SECRET, JWT_REFRESH_SECRET (optional; API falls back to JWT_SECRET if unset), DB_PASSWORD, DATABASE_URL, REDIS_URL, and URLs in $ENV_FILE yourself."
     fi
   else
     if [[ "${AUTO_SETUP:-1}" == "1" ]]; then
@@ -492,6 +508,8 @@ print_credentials_summary() {
   printf '  %-30s %s\n' "API_PORT" "${v:-"(not set)"}"
   v="$(read_env_var JWT_SECRET "$f")"
   printf '  %-30s %s\n' "JWT_SECRET" "${v:-"(empty)"}"
+  v="$(read_env_var JWT_REFRESH_SECRET "$f")"
+  printf '  %-30s %s\n' "JWT_REFRESH_SECRET" "${v:-"(empty — API uses JWT_SECRET for refresh)"}"
   printf '\n%s\n' "Database & Redis"
   v="$(read_env_var DB_PASSWORD "$f")"
   printf '  %-30s %s\n' "DB_PASSWORD" "${v:-"(empty)"}"
@@ -762,7 +780,7 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
       ACME_EMAIL tracks admin@<BASE_DOMAIN>; CORS_ORIGIN aligned to panel (127.0.0.1:8080 for local, else https://edgecontrol.<domain> or PANEL_HOST).
       Set AUTO_SETUP=0 to restore interactive first-install prompt and conservative ACME_EMAIL derivation only when empty or admin@domain.com.
     GENERATE_SECRETS=1: full|compose|bootstrap create .env from .env.example if missing, then openssl-fill
-      weak or empty secrets (JWT under 32 chars, empty DB password, ChangeMe* defaults, etc.) without rotating
+      weak or empty secrets (JWT / JWT_REFRESH under 32 chars, empty DB password, ChangeMe* defaults, etc.) without rotating
       already-strong values. Set GENERATE_SECRETS=0 to manage .env entirely by hand (AUTO_SETUP=1 still runs patch for weak values).
     EDGE_BASE_DOMAIN (optional): public FQDN for the stack — used when BASE_DOMAIN would otherwise default to localhost (production / TLS).
       With AUTO_SETUP=1 there is no TTY prompt; export EDGE_BASE_DOMAIN on CI or VPS installs.

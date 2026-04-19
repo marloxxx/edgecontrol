@@ -1,22 +1,20 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { AuditAction } from '@edgecontrol/db'
 import type { CreateServiceInput, UpdateServiceInput } from '@edgecontrol/trpc'
 
 import { AuthenticatedUser } from '../../auth/auth.types'
-import { PrometheusTargetsService } from '../../infra/prometheus/prometheus-targets.service'
 import { AuditService } from '../audit/audit.service'
 import { AccessControlService } from '../access/access-control.service'
 import { PrismaService } from '../../prisma/prisma.service'
+import { VersionService } from '../version/version.service'
 
 @Injectable()
 export class ServiceService {
-  private readonly logger = new Logger(ServiceService.name)
-
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly auditService: AuditService,
     @Inject(AccessControlService) private readonly accessControlService: AccessControlService,
-    @Inject(PrometheusTargetsService) private readonly prometheusTargets: PrometheusTargetsService
+    @Inject(VersionService) private readonly versionService: VersionService
   ) {}
 
   async list(actor: AuthenticatedUser) {
@@ -51,7 +49,7 @@ export class ServiceService {
       newValue: service as unknown as Record<string, unknown>
     })
 
-    await this.syncPrometheusFileSd()
+    await this.syncTraefikAndPrometheus(actor)
 
     return service
   }
@@ -83,7 +81,7 @@ export class ServiceService {
       newValue: service as unknown as Record<string, unknown>
     })
 
-    await this.syncPrometheusFileSd()
+    await this.syncTraefikAndPrometheus(actor)
 
     return service
   }
@@ -104,7 +102,7 @@ export class ServiceService {
       oldValue: existing as unknown as Record<string, unknown>
     })
 
-    await this.syncPrometheusFileSd()
+    await this.syncTraefikAndPrometheus(actor)
 
     return { success: true }
   }
@@ -129,19 +127,17 @@ export class ServiceService {
       newValue: { enabled: service.enabled }
     })
 
-    await this.syncPrometheusFileSd()
+    await this.syncTraefikAndPrometheus(actor)
 
     return service
   }
 
-  private async syncPrometheusFileSd(): Promise<void> {
-    try {
-      await this.prometheusTargets.syncFromServices()
-    } catch (err) {
-      this.logger.warn(
-        `Prometheus file_sd sync failed: ${err instanceof Error ? err.message : String(err)}`
-      )
-    }
+  /**
+   * Rewrites `01-managed.yml` and Prometheus file_sd from the current DB state.
+   * `VersionService.regenerate` already calls `prometheusTargets.syncFromServices()`.
+   */
+  private async syncTraefikAndPrometheus(actor: AuthenticatedUser): Promise<void> {
+    await this.versionService.regenerate(actor)
   }
 
   async setWeight(id: string, weight: number, actor: AuthenticatedUser) {

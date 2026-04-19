@@ -135,13 +135,14 @@ export class TraefikService {
         middlewareNames.push(name)
       }
 
-      // Never send ACME HTTP-01 paths to the upstream (answered on :80 by Traefik A). Prefix uses a trailing `/`
-      // so the rule matches the real token URLs; `Path()` covers the rare bare path without a token segment.
-      const acmeHttp01Exclusion = `!PathPrefix(\`/.well-known/acme-challenge/\`) && !Path(\`/.well-known/acme-challenge\`)`
+      // Traefik v3.6: HTTP-01 is handled by the built-in challenge router on `web`. File-provider `Host()` routers
+      // (especially HTTP→HTTPS redirect) must stay *below* that handler — use `priority: 1` (higher number wins).
+      // Do not add a manual `PathPrefix(\`/.well-known/acme-challenge/\`)` router to `noop@internal` (404, breaks LE).
       const router: Record<string, unknown> = {
-        rule: `Host(\`${route.domain}\`) && ${acmeHttp01Exclusion}`,
+        rule: `Host(\`${route.domain}\`)`,
         service: key,
         entryPoints: ['websecure'],
+        priority: 1,
         tls: { certResolver: 'letsencrypt' }
       }
       if (middlewareNames.length > 0) {
@@ -149,11 +150,10 @@ export class TraefikService {
       }
       routers[key] = router
 
-      // Plain HTTP → HTTPS without breaking Let's Encrypt HTTP-01: never redirect `/.well-known/acme-challenge/…`
-      // on :80—Traefik A must answer the challenge locally (do not forward that path to a downstream Traefik).
       routers[`${key}-http`] = {
-        rule: `Host(\`${route.domain}\`) && ${acmeHttp01Exclusion}`,
+        rule: `Host(\`${route.domain}\`)`,
         entryPoints: ['web'],
+        priority: 1,
         middlewares: ['redirect-https'],
         service: 'noop@internal'
       }
@@ -238,7 +238,7 @@ export class TraefikService {
     const normalized = this.normalizeTraefikFilePayload(config)
 
     // Do not write `{}` to disk: Traefik merges every `*.yml` in `dynamic.d/` and a root `{}` file
-    // can wipe file-provider routes (panel / MinIO in 00-static.yml) → 404.
+    // can wipe file-provider routes (MinIO in 00-static.yml) → 404.
     if (Object.keys(normalized).length === 0) {
       try {
         fs.unlinkSync(this.configPath)

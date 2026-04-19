@@ -513,7 +513,7 @@ print_credentials_summary() {
     [[ -n "$v" ]] && printf '  %-30s %s\n' "$key" "$v"
   done
   printf '  %-30s %s\n' "→ if unset" "Compose uses 127.0.0.1:3001 (API) and :8080 (panel)"
-  printf '\n%s\n' "Traefik / TLS (file: dynamic.d/00-static.yml + optional 01-managed.yml; Docker provider optional; Let’s Encrypt)"
+  printf '\n%s\n' "Traefik / TLS (file: dynamic.d/00-static.yml MinIO + optional 01-managed.yml; Let’s Encrypt)"
   v="$(read_env_var ACME_EMAIL "$f")"
   printf '  %-30s %s\n' "ACME_EMAIL" "${v:-"(empty)"}"
   v="$(read_env_var BASE_DOMAIN "$f")"
@@ -792,7 +792,7 @@ Deploy commands (stack = Docker only; no host pnpm):
   ./scripts/${ME} help      — this text
 
 Other:
-  ./scripts/render-traefik-static.sh — rewrite docker/traefik/dynamic.d/00-static.yml from .env (panel + MinIO hosts)
+  ./scripts/render-traefik-static.sh — rewrite docker/traefik/dynamic.d/00-static.yml from .env (MinIO hosts only)
 EOF
 }
 
@@ -845,7 +845,7 @@ cmd_bootstrap() {
 Next steps:
   • ./scripts/${ME} full      # compose + migrate (Docker only)
   • ./scripts/${ME} compose
-  • After editing BASE_DOMAIN / PANEL_HOST / MINIO_* in .env: ./scripts/render-traefik-static.sh && docker compose up -d --force-recreate traefik
+  • After editing BASE_DOMAIN / MINIO_* in .env: ./scripts/render-traefik-static.sh && docker compose up -d --force-recreate traefik
   • Local dev: pnpm install && pnpm --filter @edgecontrol/db prisma:generate && pnpm dev
 EOF
 }

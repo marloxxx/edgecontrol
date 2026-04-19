@@ -1,6 +1,6 @@
 # Edgecontrol
 
-Monorepo for a **Traefik-centric operations panel**: manage dynamic routing configuration, monitor service health, and enforce RBAC. The API (NestJS) writes **`docker/traefik/dynamic.d/01-managed.yml`**; panel and MinIO use **`00-static.yml`** rendered from **`.env`**; a worker processes background jobs (BullMQ / Redis); the web app is built with Vite and React.
+Monorepo for a **Traefik-centric operations panel**: manage dynamic routing configuration, monitor service health, and enforce RBAC. The API (NestJS) writes **`docker/traefik/dynamic.d/01-managed.yml`**; **`00-static.yml`** (from **`.env`**) defines **MinIO** Traefik routes only — expose the **panel** via **managed** routes or loopback; a worker processes background jobs (BullMQ / Redis); the web app is built with Vite and React.
 
 On **Linux servers** it is usual to keep this checkout under **`/opt/stack`** or **`/opt/apps`** (for example `/opt/stack/edgecontrol`). Use that base consistently for Compose volumes, Traefik mounts, and systemd paths — see [Host checkout path (Linux)](#host-checkout-path-linux) under Docker Compose.
 
@@ -117,19 +117,33 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 
 `.env` on disk is unchanged; delete or regenerate it yourself if you also want new secrets.
 
-**Panel and API:** you can use **loopback** (**`http://127.0.0.1:8080`** / **`:3001`**) or **Traefik HTTPS** for the **panel only** on **`PANEL_HOST`** (default **`edgecontrol.<BASE_DOMAIN>`** — set **`BASE_DOMAIN`** or **`PANEL_HOST`** in `.env`, point **DNS** at the host). The API is **not** on Traefik; the panel **nginx** proxies **`/trpc`** and **`/api`** to **`http://api:3000`** on the Docker network. Set **`CORS_ORIGIN`** to the **exact** panel origin the browser uses (e.g. **`https://edgecontrol.example.com`** when using Traefik). Local **`pnpm dev`** defaults tRPC to **http://localhost:3001** unless **`VITE_API_URL`** is set.
+**Panel and API:** use **loopback** (**`http://127.0.0.1:8080`** / **`:3001`**) or put the panel on **Traefik** by creating a **managed** service whose **public domain** is your **`PANEL_HOST`** (default would be **`edgecontrol.<BASE_DOMAIN>`** — **`PANEL_HOST`** in **`.env`** is still used for **`CORS_ORIGIN`**, Compose, and docs; it is **not** emitted into **`00-static.yml`**). The API is **not** on Traefik; the panel **nginx** proxies **`/trpc`** and **`/api`** to **`http://api:3000`**. Set **`CORS_ORIGIN`** to the **exact** panel origin the browser uses. Local **`pnpm dev`** defaults tRPC to **http://localhost:3001** unless **`VITE_API_URL`** is set.
 
-**Traefik (file provider only):** **`./docker/traefik/traefik.yml`** loads **`providers.file.directory`** → **`./docker/traefik/dynamic.d/`** (all **`*.yml`** merged). **`00-static.yml`** is generated from **`.env`** (**`BASE_DOMAIN`**, optional **`PANEL_HOST`** / **`MINIO_*_HOST`**) and defines the panel and MinIO routers. **`01-managed.yml`** is written only by the API (**Regenerate** in the UI). See **`docker-compose.proxy.yml`** when attaching Traefik, **`web`**, and **`minio`** to an external **`proxy`** network. If **`https://edgecontrol.your-domain`** 404s, re-run **`./scripts/render-traefik-static.sh`**, check **`.env`** hostnames match DNS, then **`docker compose up -d --force-recreate traefik`**.
+**Traefik (file provider only):** **`./docker/traefik/traefik.yml`** loads **`providers.file.directory`** → **`./docker/traefik/dynamic.d/`** (all **`*.yml`** merged). **`00-static.yml`** is generated from **`.env`** (**`BASE_DOMAIN`**, optional **`MINIO_*_HOST`**) and defines **MinIO** routers only. **`01-managed.yml`** is written only by the API (**Regenerate** in the UI) and carries **edge / panel** hostnames when you model them as managed services. See **`docker-compose.proxy.yml`** when attaching Traefik, **`web`**, and **`minio`** to an external **`proxy`** network. If Traefik returns **404**, re-run **`./scripts/render-traefik-static.sh`**, **Regenerate**, check **DNS** / **`.env`**, then **`docker compose up -d --force-recreate traefik`**.
 
-**Managed routes:** **Regenerate** in the UI after changing managed services; the API overwrites **`dynamic.d/01-managed.yml`** only (static routes in **`00-static.yml`** are unchanged).
+**Managed routes:** **Regenerate** in the UI after changing managed services; the API overwrites **`dynamic.d/01-managed.yml`** only (MinIO routes in **`00-static.yml`** are unchanged unless you re-render static).
 
-**404 on :443:** if **Host** does not match the names in **`00-static.yml`** or a managed route, Traefik returns **404**. Set **`BASE_DOMAIN`** / **`PANEL_HOST`** / **`MINIO_*_HOST`**, run **`./scripts/render-traefik-static.sh`**, recreate **`traefik`**.
+**404 on :443:** if **Host** does not match **`00-static.yml`** (MinIO) or **`01-managed.yml`**, Traefik returns **404**. Set **`BASE_DOMAIN`** / **`MINIO_*_HOST`** and **`PANEL_HOST`** (for CORS / managed domain), run **`./scripts/render-traefik-static.sh`**, recreate **`traefik`**.
 
 **MinIO behind Traefik:** hostnames in **`00-static.yml`** must match **`MINIO_BROWSER_REDIRECT_URL`** / **`MINIO_SERVER_URL`** (Compose still derives those from **`BASE_DOMAIN`** unless overridden). Shared **`proxy`** network: **`docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d`** — recreate **`traefik`**, **`web`**, **`minio`** so Traefik can reach backends on that network.
 
 **ACME `rejectedIdentifier` / “forbidden by policy”:** Let’s Encrypt refuses some names (for example **`*.example.com`**). Use a real public hostname on **managed** services in the UI, with DNS to this host. **`BASE_DOMAIN`** in `.env` is mainly for **`ACME_EMAIL`** derivation (`admin@<BASE_DOMAIN>` when you still have the example placeholder); you can `export EDGE_BASE_DOMAIN=yourdomain.com` before `./scripts/setup.sh full` to replace `example.com`.
 
 **ACME HTTP-01 still fails:** check **DNS → this host**, **:80** reachable, and that nothing **in front** of Traefik answers **`/.well-known/acme-challenge/`** with **404**. This stack’s Traefik does **not** load Docker labels; if you run **another** Traefik on the same IP with **`@docker`** routers for the same **`Host()`**, fix that instance’s labels or consolidate to one edge proxy.
+
+**If ACME fails with no obvious TLS error:** Let’s Encrypt needs a **router on this Traefik** for the public **`Host()`** so HTTP-01 is answered on **:80**. After removing **`providers.docker`**, old log lines such as **`routerName=…@docker`** refer to **another** Traefik or **historical** state — this project’s routes come from the **file** provider only and appear as **`@file`** in Traefik’s own logs.
+
+**Checks (this stack):**
+
+1. **Static config** — **`./docker/traefik/traefik.yml`** must contain **`providers.file.directory: /etc/traefik/dynamic.d`** and **`watch: true`** (already the default in this repo). The directory inside the container must match the Compose bind mount: **`./docker/traefik/dynamic.d:/etc/traefik/dynamic.d`** (a typo such as **`dynamicc.d`** breaks loading).
+2. **File provider started** — `docker logs edgecontrol-traefik 2>&1 | grep -i file` should show the file provider starting (exact wording varies by Traefik version).
+3. **Dynamic files present** — `docker exec edgecontrol-traefik ls -la /etc/traefik/dynamic.d` — expect **`00-static.yml`** (from **`./scripts/render-traefik-static.sh`**) and **`01-managed.yml`** after you **Regenerate** in the UI (or the API deletes **`01-managed.yml`** when there are no enabled managed services).
+4. **Managed content visible** — `docker exec edgecontrol-traefik cat /etc/traefik/dynamic.d/01-managed.yml` — confirm YAML for your domains exists on the **same** host where Traefik runs.
+5. **Restart** — `docker compose up -d --force-recreate traefik` after changing static paths or mounts.
+
+**`01-managed.yml` is generated:** the API overwrites **`docker/traefik/dynamic.d/01-managed.yml`** on **Regenerate** and on managed-service changes — do not rely on hand-edits there; change data in the UI or adjust **`TraefikService.buildConfig()`** in the repo.
+
+**Traefik v3.6 + HTTP-01:** Traefik answers **`/.well-known/acme-challenge/*`** on **`web`** via its **internal** handler — do **not** add a manual router for that path (and never point it at **`noop@internal`**, which does not serve the token). **`00-static.yml`** (MinIO) and generated **`01-managed.yml`** use plain **`Host()`** rules and **`priority: 1`** on file-provider routers so **`redirect-https`** on **:80** does not win over the internal challenge router (higher numeric priority wins). Re-run **`./scripts/render-traefik-static.sh`**, **Regenerate** managed routes, then recreate **`traefik`** after pulling.
 
 ### Host checkout path (Linux)
 
@@ -146,7 +160,7 @@ The Compose file runs the **edge**, **app**, and **observability** roles on one 
 
 | Concern | All-in-one Compose | Split (e.g. three VPS) |
 |--------|----------------------|-------------------------|
-| Panel / API vs managed edge | **Loopback** ports and/or **Traefik :443** for the panel (hosts in **`dynamic.d/00-static.yml`**); API stays internal (**nginx** → **`http://api:3000`**). Extra routes from **`dynamic.d/01-managed.yml`**. | Same ideas; split Traefik to its own host if you prefer. |
+| Panel / API vs managed edge | **Loopback** ports and/or **Traefik :443** for the panel via **`01-managed.yml`**; MinIO hostnames in **`00-static.yml`**; API stays internal (**nginx** → **`http://api:3000`**). | Same ideas; split Traefik to its own host if you prefer. |
 | Prometheus scrape target | `api:3000` in [docker/prometheus/prometheus.yml](docker/prometheus/prometheus.yml) resolves on the Compose network. | Point `static_configs.targets` at the **app host’s private address** (and open the scrape path only between observability and app). |
 | Grafana → Prometheus | `http://prometheus:9090` in provisioning. | Same hostname if both run in one observability stack; otherwise use the private Prometheus URL. |
 | Host ports **9090** / **3010** | Published for local access; convenient for laptops. | Prefer binding to a **private interface**, removing public mappings, or firewall rules so Prometheus and Grafana are not exposed on the internet. |
@@ -177,7 +191,7 @@ packages/
   trpc/         # Shared tRPC router types / client
   config/       # Shared configuration
 docker/
-  traefik/      # traefik.yml + dynamic.d/ (00-static from .env, 01-managed from API)
+  traefik/      # traefik.yml + dynamic.d/ (00-static MinIO from .env, 01-managed from API)
   prometheus/   # Prometheus scrape config
   grafana/      # Grafana provisioning + dashboards
 scripts/

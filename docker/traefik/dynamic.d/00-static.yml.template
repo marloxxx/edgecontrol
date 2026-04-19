@@ -1,4 +1,6 @@
 # Rendered to 00-static.yml by scripts/render-traefik-static.sh (reads .env). Do not edit this template’s Host() lines by hand — use .env + re-run the script.
+# Panel is not routed here — use 01-managed.yml (managed service) or loopback / published web port. MinIO only in this file.
+# `priority: 1` keeps MinIO `Host()` routers below Traefik’s internal HTTP-01 handler on `web` (higher number wins).
 http:
   middlewares:
     redirect-https:
@@ -6,38 +8,27 @@ http:
         scheme: https
         permanent: true
   routers:
-    edgecontrol-panel-http:
-      rule: Host(`__PANEL_HOST__`) && !PathPrefix(`/.well-known/acme-challenge/`) && !Path(`/.well-known/acme-challenge`)
-      entryPoints:
-        - web
-      middlewares:
-        - redirect-https
-      service: noop@internal
     edgecontrol-minio-s3-http:
-      rule: Host(`__MINIO_API_HOST__`) && !PathPrefix(`/.well-known/acme-challenge/`) && !Path(`/.well-known/acme-challenge`)
+      rule: Host(`__MINIO_API_HOST__`)
       entryPoints:
         - web
+      priority: 1
       middlewares:
         - redirect-https
       service: noop@internal
     edgecontrol-minio-console-http:
-      rule: Host(`__MINIO_CONSOLE_HOST__`) && !PathPrefix(`/.well-known/acme-challenge/`) && !Path(`/.well-known/acme-challenge`)
+      rule: Host(`__MINIO_CONSOLE_HOST__`)
       entryPoints:
         - web
+      priority: 1
       middlewares:
         - redirect-https
       service: noop@internal
-    edgecontrol-panel:
-      rule: Host(`__PANEL_HOST__`)
-      entryPoints:
-        - websecure
-      service: edgecontrol-panel-svc
-      tls:
-        certResolver: letsencrypt
     edgecontrol-minio-s3:
       rule: Host(`__MINIO_API_HOST__`)
       entryPoints:
         - websecure
+      priority: 1
       service: edgecontrol-minio-s3-svc
       tls:
         certResolver: letsencrypt
@@ -45,14 +36,11 @@ http:
       rule: Host(`__MINIO_CONSOLE_HOST__`)
       entryPoints:
         - websecure
+      priority: 1
       service: edgecontrol-minio-console-svc
       tls:
         certResolver: letsencrypt
   services:
-    edgecontrol-panel-svc:
-      loadBalancer:
-        servers:
-          - url: http://web:80
     edgecontrol-minio-s3-svc:
       loadBalancer:
         servers:

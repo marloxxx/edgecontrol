@@ -348,20 +348,17 @@ patch_insecure_or_missing_secrets() {
     changed=1
   fi
 
+  # Single seed password for Prisma RBAC users (see packages/db/prisma/seeds/rbac.seed.ts). Compose defaults
+  # to ChangeMe123456! when unset — we persist a random value so login is known and consistent.
   v="$(read_env_var RBAC_SEED_PASSWORD "$f")"
-  if [[ "$v" == "ChangeMe123456!" ]]; then
+  if [[ -z "$v" || "$v" == "ChangeMe123456!" ]]; then
     np=$(openssl rand -hex 16)
-    replace_env_line RBAC_SEED_PASSWORD "$np" "$f"
-    replace_env_line ADMIN_PASSWORD "$np" "$f"
-    changed=1
-  else
-    v="$(read_env_var ADMIN_PASSWORD "$f")"
-    if [[ "$v" == "ChangeMe123456!" ]]; then
-      np=$(openssl rand -hex 16)
-      replace_env_line ADMIN_PASSWORD "$np" "$f"
+    if grep -q "^RBAC_SEED_PASSWORD=" "$f" 2>/dev/null; then
       replace_env_line RBAC_SEED_PASSWORD "$np" "$f"
-      changed=1
+    else
+      printf '\nRBAC_SEED_PASSWORD=%s\n' "$np" >>"$f"
     fi
+    changed=1
   fi
 
   v="$(read_env_var GRAFANA_ADMIN_PASSWORD "$f")"
@@ -415,7 +412,7 @@ ensure_env_for_stack() {
     if [[ "${GENERATE_SECRETS:-1}" == "1" || "${AUTO_SETUP:-1}" == "1" ]]; then
       if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
         apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
-        log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana, seed passwords; REDIS_URL set for internal compose)."
+        log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana; REDIS_URL set for internal compose). RBAC seed password is set by the openssl patch when needed."
       fi
     else
       warn "GENERATE_SECRETS=0 — fill JWT_SECRET, DB_PASSWORD, DATABASE_URL, REDIS_URL, and URLs in $ENV_FILE yourself."
@@ -534,21 +531,12 @@ print_credentials_summary() {
   printf '  %-30s %s\n' "TELEGRAM_BOT_TOKEN" "${v:-"(empty)"}"
   v="$(read_env_var TELEGRAM_CHAT_ID "$f")"
   printf '  %-30s %s\n' "TELEGRAM_CHAT_ID" "${v:-"(empty)"}"
-  printf '\n%s\n' "Admin & RBAC seed (UI / API users)"
-  v="$(read_env_var ADMIN_EMAIL "$f")"
-  printf '  %-30s %s\n' "ADMIN_EMAIL" "${v:-"(empty)"}"
-  v="$(read_env_var ADMIN_PASSWORD "$f")"
-  printf '  %-30s %s\n' "ADMIN_PASSWORD" "${v:-"(empty)"}"
+  printf '\n%s\n' "Prisma RBAC seed (first UI / API logins)"
+  v="$(read_env_var BASE_DOMAIN "$f")"
+  printf '  %-30s %s\n' "Seed user emails" "superadmin, admin, developer, viewer @ ${v:-"(set BASE_DOMAIN)"}"
+  printf '  %-30s %s\n' "Optional overrides" "RBAC_*_EMAIL / RBAC_*_PASSWORD in .env (see rbac.seed.ts)"
   v="$(read_env_var RBAC_SEED_PASSWORD "$f")"
-  printf '  %-30s %s\n' "RBAC_SEED_PASSWORD" "${v:-"(empty)"}"
-  v="$(read_env_var RBAC_SUPER_ADMIN_EMAIL "$f")"
-  printf '  %-30s %s\n' "RBAC_SUPER_ADMIN_EMAIL" "${v:-"(empty)"}"
-  v="$(read_env_var RBAC_ADMIN_EMAIL "$f")"
-  printf '  %-30s %s\n' "RBAC_ADMIN_EMAIL" "${v:-"(empty)"}"
-  v="$(read_env_var RBAC_DEVELOPER_EMAIL "$f")"
-  printf '  %-30s %s\n' "RBAC_DEVELOPER_EMAIL" "${v:-"(empty)"}"
-  v="$(read_env_var RBAC_VIEWER_EMAIL "$f")"
-  printf '  %-30s %s\n' "RBAC_VIEWER_EMAIL" "${v:-"(empty)"}"
+  printf '  %-30s %s\n' "RBAC_SEED_PASSWORD" "${v:-"(empty — compose default ChangeMe123456!)"}"
   printf '\n%s\n' "Grafana (observability UI — docker compose port 3010)"
   v="$(read_env_var GRAFANA_ADMIN_USER "$f")"
   printf '  %-30s %s\n' "GRAFANA_ADMIN_USER" "${v:-"(empty)"}"
@@ -563,6 +551,19 @@ print_credentials_summary() {
   printf '  %-30s %s\n' "HEALTH_CHECK_INTERVAL_MS" "${v:-"(not set)"}"
   printf '\n%s\n' "═══════════════════════════════════════════════════════════════════"
   printf '%s\n\n' "  Tip: capture this output with: ./scripts/${ME} 2>&1 | tee setup-credentials.log"
+}
+
+# After full|compose|bootstrap, remind operators to store secrets (respects SHOW_CREDENTIALS).
+maybe_print_credentials() {
+  local envf="${1:-$ROOT/.env}"
+  if [[ "${SHOW_CREDENTIALS:-1}" != "1" ]]; then
+    return 0
+  fi
+  if [[ -f "$envf" ]]; then
+    print_credentials_summary "$envf"
+  else
+    warn "No $envf — cannot print credentials summary."
+  fi
 }
 
 require_env_file() {
@@ -684,6 +685,7 @@ cmd_compose() {
   ensure_public_network
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build "$@")
   echo "Stack started. See docker-compose.yml; Traefik file routes in docker/traefik/dynamic.d/."
+  maybe_print_credentials "$ROOT/.env"
 }
 
 cmd_db() {
@@ -743,6 +745,7 @@ cmd_full() {
   echo ""
   echo "=== Done ==="
   echo "API + web + dependencies are running via Docker Compose."
+  maybe_print_credentials "$ROOT/.env"
 }
 
 usage() {
@@ -755,6 +758,7 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
 
   Environment (defaults 1 = on; set to 0 to skip):
     COPY_ENV, GENERATE_SECRETS, AUTO_SETUP, SYNC_ENV_FROM_EXAMPLE, DOCKER_PREP, INSTALL_DOCKER, SHOW_CREDENTIALS
+    SHOW_CREDENTIALS=1: after bootstrap, full, and compose, print values to store securely (set 0 to suppress).
     AUTO_SETUP=1 (default): no domain prompt; BASE_DOMAIN becomes EDGE_BASE_DOMAIN or localhost when empty/example.com;
       ACME_EMAIL tracks admin@<BASE_DOMAIN>; CORS_ORIGIN aligned to panel (127.0.0.1:8080 for local, else https://edgecontrol.<domain> or PANEL_HOST).
       Set AUTO_SETUP=0 to restore interactive first-install prompt and conservative ACME_EMAIL derivation only when empty or admin@domain.com.
@@ -768,8 +772,8 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
     FORCE_ENV_SYNC=1: before bootstrap, backup existing .env to .env.bak.<epoch> and remove it so the next run recreates from .env.example
       (same as rm .env then full). Default 0. Use when you intentionally want a clean template + regenerated secrets.
     replace_env_line / patch_insecure only change values for keys already present; new keys come from SYNC_ENV_FROM_EXAMPLE or a fresh copy.
-    Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID. Seed email addresses stay
-      as in .env unless you edit them (they are not secrets).
+    Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
+    Prisma seed users default to <role>@<BASE_DOMAIN>; RBAC_SEED_PASSWORD is auto-set when empty or still the placeholder.
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).
 
 Deploy commands (stack = Docker only; no host pnpm):
@@ -833,11 +837,7 @@ cmd_bootstrap() {
 
   log "Setup finished."
 
-  if [[ "${SHOW_CREDENTIALS}" == "1" ]] && [[ -f "$ENV_FILE" ]]; then
-    print_credentials_summary "$ENV_FILE"
-  elif [[ "${SHOW_CREDENTIALS}" == "1" ]] && [[ ! -f "$ENV_FILE" ]]; then
-    warn "No $ENV_FILE — cannot print credentials summary."
-  fi
+  maybe_print_credentials "$ENV_FILE"
 
   cat <<EOF
 

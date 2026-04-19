@@ -170,9 +170,6 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
-      # Defaults match Traefik Host() (BASE_DOMAIN / MINIO_*_HOST). Override with MINIO_BROWSER_REDIRECT_URL / MINIO_SERVER_URL if needed.
-      MINIO_BROWSER_REDIRECT_URL: "${MINIO_BROWSER_REDIRECT_URL:-https://${MINIO_CONSOLE_HOST:-minio.${BASE_DOMAIN}}}"
-      MINIO_SERVER_URL: "${MINIO_SERVER_URL:-https://${MINIO_API_HOST:-s3.${BASE_DOMAIN}}}"
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
@@ -181,25 +178,6 @@ services:
     # MinIO HTTPS hosts are in docker/traefik/dynamic.d/00-static.yml (render from .env — no Docker labels).
     networks:
       - internal
-
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_started
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -e
-        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
-        mc mb --ignore-existing "local/$${MINIO_BUCKET:-edgecontrol}"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
-      MINIO_BUCKET: ${MINIO_BUCKET:-edgecontrol}
-    networks:
-      - internal
-    restart: "no"
 
   prometheus:
     image: prom/prometheus:v2.54.1

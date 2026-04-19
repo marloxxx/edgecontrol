@@ -537,7 +537,7 @@ print_credentials_summary() {
   v="$(read_env_var TELEGRAM_CHAT_ID "$f")"
   printf '  %-30s %s\n' "TELEGRAM_CHAT_ID" "${v:-"(empty)"}"
   printf '\n%s\n' "Prisma RBAC seed (first UI / API logins)"
-  printf '  %-30s %s\n' "Seed users (static)" "admin|developer|viewer @ ptsi.co.id — packages/db/prisma/seeds/rbac.seed.ts"
+  printf '  %-30s %s\n' "Seed users (static)" "see packages/db/prisma/seeds/rbac.seed.ts (domain + local parts)"
   printf '\n%s\n' "Grafana (observability UI — docker compose port 3010)"
   v="$(read_env_var GRAFANA_ADMIN_USER "$f")"
   printf '  %-30s %s\n' "GRAFANA_ADMIN_USER" "${v:-"(empty)"}"
@@ -774,7 +774,7 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
       (same as rm .env then full). Default 0. Use when you intentionally want a clean template + regenerated secrets.
     replace_env_line / patch_insecure only change values for keys already present; new keys come from SYNC_ENV_FROM_EXAMPLE or a fresh copy.
     Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
-    Prisma RBAC seed is static in packages/db/prisma/seeds/rbac.seed.ts (emails + password); ./scripts/${ME} seed refreshes hashes in the DB.
+    Prisma RBAC seed is static in packages/db/prisma/seeds/rbac.seed.ts (emails + password). Docker migrate bind-mounts ./packages/db so edits apply on the next db reset/seed without rebuilding the image.
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).
 
 Deploy commands (stack = Docker only; no host pnpm):

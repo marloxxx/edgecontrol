@@ -1,0 +1,1 @@
+ALTER TABLE "Service" ADD COLUMN "traefikHealthCheck" BOOLEAN NOT NULL DEFAULT true;

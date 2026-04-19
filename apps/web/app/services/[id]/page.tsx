@@ -132,6 +132,7 @@ type: ${service.type}
 ${(service as { node?: { name: string } | null }).node ? `node: ${(service as { node: { name: string } }).node.name}` : ''}
 health_check:
   path: ${service.healthPath}
+  traefik_lb_probe: ${(service as { traefikHealthCheck?: boolean }).traefikHealthCheck !== false}
 enabled: ${service.enabled}
 metrics:
   enabled: ${(service as { metricsEnabled?: boolean }).metricsEnabled ?? false}

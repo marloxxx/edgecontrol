@@ -19,6 +19,7 @@ export const serviceSchema = z.object({
   enabled: z.boolean(),
   weight: z.number().int().min(0).max(100),
   healthPath: z.string().default('/'),
+  traefikHealthCheck: z.boolean().default(true),
   rateLimitAvg: z.number().int().nullable(),
   rateLimitBurst: z.number().int().nullable(),
   circuitBreakerEnabled: z.boolean(),

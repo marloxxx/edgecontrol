@@ -13,6 +13,8 @@ interface RouteConfig {
   targetPort: number
   protocol: string
   healthPath: string
+  /** When false, omit Traefik `loadBalancer.healthCheck` entirely. */
+  traefikHealthCheck: boolean
   rateLimitAvg: number | null
   rateLimitBurst: number | null
   circuitBreakerEnabled: boolean
@@ -193,8 +195,10 @@ export class TraefikService {
             url: `${route.protocol}://${route.targetHost}:${route.targetPort}`,
             weight: route.weight
           }
-        ],
-        healthCheck
+        ]
+      }
+      if (route.traefikHealthCheck) {
+        loadBalancer.healthCheck = healthCheck
       }
       if (outboundTlsUsesPublicName) {
         loadBalancer.serversTransport = outboundTransportName

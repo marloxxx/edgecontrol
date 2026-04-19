@@ -50,6 +50,7 @@ type ServiceRecord = {
   enabled: boolean
   weight: number
   healthPath: string
+  traefikHealthCheck?: boolean
   rateLimitAvg: number | null
   rateLimitBurst: number | null
   circuitBreakerEnabled: boolean
@@ -73,6 +74,7 @@ function serviceToFormValues(s: ServiceRecord): FormValues {
     enabled: s.enabled,
     weight: s.weight,
     healthPath: s.healthPath,
+    traefikHealthCheck: s.traefikHealthCheck ?? true,
     rateLimitAvg: s.rateLimitAvg,
     rateLimitBurst: s.rateLimitBurst,
     circuitBreakerEnabled: s.circuitBreakerEnabled,
@@ -103,7 +105,8 @@ const defaults: FormValues = {
   type: 'api',
   enabled: true,
   weight: 100,
-    healthPath: '/',
+  healthPath: '/',
+  traefikHealthCheck: true,
   rateLimitAvg: null,
   rateLimitBurst: null,
   circuitBreakerEnabled: false,
@@ -165,6 +168,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuccess, editServiceId 
       enabled: raw.enabled,
       weight: raw.weight,
       healthPath: raw.healthPath,
+      traefikHealthCheck: raw.traefikHealthCheck,
       rateLimitAvg: raw.rateLimitAvg,
       rateLimitBurst: raw.rateLimitBurst,
       circuitBreakerEnabled: raw.circuitBreakerEnabled,
@@ -301,6 +305,23 @@ export function ServiceFormModal({ open, onOpenChange, onSuccess, editServiceId 
                 serves that (e.g. behind another Traefik). Use <span className="font-mono">/api/health</span> if your
                 app exposes it.
               </p>
+              <div className="flex items-start gap-2 pt-1">
+                <Checkbox
+                  id="svc-traefik-hc"
+                  checked={form.watch('traefikHealthCheck')}
+                  onCheckedChange={(c) => form.setValue('traefikHealthCheck', c === true)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <Label htmlFor="svc-traefik-hc" className="text-sm font-normal cursor-pointer">
+                    Traefik load-balancer health probe
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Turn off if the upstream always returns 404 for the probe (e.g. Traefik B has no route yet). Traffic
+                    still proxies; only the Traefik <span className="font-mono">healthCheck</span> block is omitted.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">

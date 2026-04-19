@@ -71,6 +71,8 @@ model Service {
   enabled               Boolean   @default(true)
   weight                Int       @default(100)
   healthPath            String    @default("/")
+  /** When false, Traefik omits `loadBalancer.healthCheck` (useful when the upstream returns 404 for every probe path until routing is fixed). Worker and panel checks still use `healthPath`. */
+  traefikHealthCheck    Boolean   @default(true)
   rateLimitAvg          Int?
   rateLimitBurst        Int?
   circuitBreakerEnabled Boolean   @default(false)

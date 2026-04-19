@@ -34,6 +34,7 @@ export class VersionService {
         targetPort: route.targetPort,
         protocol: route.protocol,
         healthPath: route.healthPath,
+        traefikHealthCheck: route.traefikHealthCheck,
         rateLimitAvg: route.rateLimitAvg,
         rateLimitBurst: route.rateLimitBurst,
         circuitBreakerEnabled: route.circuitBreakerEnabled,

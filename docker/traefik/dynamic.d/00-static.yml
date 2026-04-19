@@ -1,6 +1,31 @@
-# Generated for BASE_DOMAIN=example.com (default). Re-run: ./scripts/render-traefik-static.sh
 http:
+  middlewares:
+    redirect-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
   routers:
+    edgecontrol-panel-http:
+      rule: Host(`edgecontrol.example.com`) && !PathPrefix(`/.well-known/acme-challenge`)
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-https
+      service: noop@internal
+    edgecontrol-minio-s3-http:
+      rule: Host(`s3.example.com`) && !PathPrefix(`/.well-known/acme-challenge`)
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-https
+      service: noop@internal
+    edgecontrol-minio-console-http:
+      rule: Host(`minio.example.com`) && !PathPrefix(`/.well-known/acme-challenge`)
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-https
+      service: noop@internal
     edgecontrol-panel:
       rule: Host(`edgecontrol.example.com`)
       entryPoints:

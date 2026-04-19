@@ -142,6 +142,14 @@ export class TraefikService {
       }
       routers[key] = router
 
+      // Plain HTTP → HTTPS without breaking Let's Encrypt HTTP-01 (middleware `redirect-https` in 00-static.yml).
+      routers[`${key}-http`] = {
+        rule: `Host(\`${route.domain}\`) && !PathPrefix(\`/.well-known/acme-challenge\`)`,
+        entryPoints: ['web'],
+        middlewares: ['redirect-https'],
+        service: 'noop@internal'
+      }
+
       services[key] = {
         loadBalancer: {
           servers: [

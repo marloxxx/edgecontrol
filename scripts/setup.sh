@@ -416,9 +416,6 @@ ensure_env_for_stack() {
       if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
         apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
         log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana, seed passwords; REDIS_URL set for internal compose)."
-      else
-        patch_insecure_or_missing_secrets "$ENV_FILE" || true
-        log "AUTO_SETUP=1 with GENERATE_SECRETS=0 — patched weak or missing credentials only."
       fi
     else
       warn "GENERATE_SECRETS=0 — fill JWT_SECRET, DB_PASSWORD, DATABASE_URL, REDIS_URL, and URLs in $ENV_FILE yourself."
@@ -427,32 +424,30 @@ ensure_env_for_stack() {
     if [[ "${AUTO_SETUP:-1}" == "1" ]]; then
       auto_set_base_domain "$ENV_FILE"
     fi
-    if [[ "${GENERATE_SECRETS:-1}" == "1" || "${AUTO_SETUP:-1}" == "1" ]]; then
-      if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
-        if patch_insecure_or_missing_secrets "$ENV_FILE"; then
-          log "Filled missing or default credentials in $ENV_FILE (openssl)."
-        fi
-      else
-        patch_insecure_or_missing_secrets "$ENV_FILE" || true
-        log "AUTO_SETUP=1 with GENERATE_SECRETS=0 — patched weak or missing credentials only."
-      fi
-    fi
   fi
 
   [[ -f "$ENV_FILE" ]] || return 1
 
+  # Append missing keys from .env.example *before* openssl patch so the same run replaces e.g. ChangeMeMinioRoot! (Compose requires MINIO_ROOT_PASSWORD).
   sync_missing_keys_from_example "$ENV_EXAMPLE" "$ENV_FILE"
+  if [[ "${GENERATE_SECRETS:-1}" == "1" || "${AUTO_SETUP:-1}" == "1" ]]; then
+    if patch_insecure_or_missing_secrets "$ENV_FILE"; then
+      log "Filled missing or default credentials in $ENV_FILE (openssl)."
+    fi
+  fi
   sync_traefik_env_with_example "$ENV_FILE"
   maybe_auto_cors_origin "$ENV_FILE"
   warn_localhost_in_production "$ENV_FILE"
   ensure_traefik_static_rendered
 
   if [[ "$mode" == "strict" ]]; then
-    local dbchk jwchk
+    local dbchk jwchk mp
     dbchk="$(read_env_var DB_PASSWORD "$ENV_FILE")"
     [[ -n "$dbchk" ]] || die "DB_PASSWORD must be set in $ENV_FILE"
     jwchk="$(read_env_var JWT_SECRET "$ENV_FILE")"
     [[ ${#jwchk} -ge 32 ]] || die "JWT_SECRET must be at least 32 characters in $ENV_FILE (install openssl and re-run, or set manually)."
+    mp="$(read_env_var MINIO_ROOT_PASSWORD "$ENV_FILE")"
+    [[ -n "$mp" ]] || die "MINIO_ROOT_PASSWORD is empty (docker compose requires it). Re-run with SYNC_ENV_FROM_EXAMPLE=1 or add MINIO_ROOT_PASSWORD=... to $ENV_FILE."
   fi
   return 0
 }

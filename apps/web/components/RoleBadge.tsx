@@ -11,19 +11,19 @@ export function RoleBadge({ role }: RoleBadgeProps) {
   const roleConfig: Record<Role, { label: string; className: string }> = {
     VIEWER: {
       label: 'Viewer',
-      className: 'bg-slate-500/15 text-slate-300 border-slate-500/25'
+      className: 'bg-slate-500/12 text-slate-800 border-slate-500/30'
     },
     DEVELOPER: {
       label: 'Developer',
-      className: 'bg-blue-500/15 text-blue-300 border-blue-500/25'
+      className: 'bg-blue-500/12 text-blue-900 border-blue-500/30'
     },
     ADMIN: {
       label: 'Admin',
-      className: 'bg-purple-500/15 text-purple-300 border-purple-500/25'
+      className: 'bg-purple-500/12 text-purple-900 border-purple-500/30'
     },
     SUPER_ADMIN: {
       label: 'Super Admin',
-      className: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/25'
+      className: 'bg-cyan-muted text-cyan-accent border-cyan-border'
     }
   }
 

@@ -12,15 +12,19 @@ export function StatusBadge({ status, animate = false }: StatusBadgeProps) {
   const statusConfig = {
     UP: {
       label: 'UP',
-      className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+      className: 'bg-emerald-500/12 text-emerald-800 border-emerald-500/35'
     },
     SLOW: {
       label: 'SLOW',
-      className: 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+      className: 'bg-amber-500/12 text-amber-900 border-amber-500/35'
     },
     DOWN: {
       label: 'DOWN',
-      className: 'bg-red-500/15 text-red-300 border-red-500/30'
+      className: 'bg-red-500/12 text-red-800 border-red-500/35'
+    },
+    DISABLED: {
+      label: 'OFF',
+      className: 'bg-muted text-muted-foreground border-border'
     }
   }
 

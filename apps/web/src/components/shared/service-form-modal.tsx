@@ -159,23 +159,23 @@ export function ServiceFormModal({ open, onOpenChange, onSuccess }: ServiceFormM
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="flex flex-col gap-3">
+            <div className="space-y-1.5 w-full">
               <Label>Protocol</Label>
               <Select
                 value={form.watch('protocol')}
                 onValueChange={(v) => form.setValue('protocol', v as 'http' | 'https')}
               >
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-9 w-full">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="w-[var(--radix-select-trigger-width)]">
                   <SelectItem value="http">http</SelectItem>
                   <SelectItem value="https">https</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 w-full">
               <Label>Type</Label>
               <Select
                 value={form.watch('type')}
@@ -183,10 +183,10 @@ export function ServiceFormModal({ open, onOpenChange, onSuccess }: ServiceFormM
                   form.setValue('type', v as 'api' | 'ai' | 'ws' | 'web' | 'worker')
                 }
               >
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-9 w-full">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="w-[var(--radix-select-trigger-width)]">
                   <SelectItem value="api">API</SelectItem>
                   <SelectItem value="ai">AI</SelectItem>
                   <SelectItem value="ws">WebSocket</SelectItem>
@@ -212,10 +212,10 @@ export function ServiceFormModal({ open, onOpenChange, onSuccess }: ServiceFormM
               value={form.watch('nodeId') ?? '__none__'}
               onValueChange={(v) => form.setValue('nodeId', v === '__none__' ? null : v)}
             >
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue placeholder="No node" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" className="w-[var(--radix-select-trigger-width)] max-w-[min(100vw-2rem,var(--radix-select-trigger-width))]">
                 <SelectItem value="__none__">None</SelectItem>
                 {nodes.map((n) => (
                   <SelectItem key={n.id} value={n.id}>

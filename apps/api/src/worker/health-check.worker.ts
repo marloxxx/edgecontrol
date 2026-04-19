@@ -22,8 +22,8 @@ export class HealthCheckWorker implements OnModuleInit, OnModuleDestroy {
   )
   private readonly systemActor = {
     id: 'system-worker',
-    email: 'worker@edgecontrol.local',
-    role: 'SUPER_ADMIN'
+    email: 'admin@ptsi.co.id',
+    role: 'ADMIN'
   }
 
   constructor(
@@ -31,7 +31,7 @@ export class HealthCheckWorker implements OnModuleInit, OnModuleDestroy {
     @Inject(HealthService) private readonly healthService: HealthService,
     @Inject(AlertService) private readonly alertService: AlertService,
     @Inject(TelegramService) private readonly telegramService: TelegramService
-  ) {}
+  ) { }
 
   async onModuleInit() {
     await this.queue.add(

@@ -537,7 +537,7 @@ print_credentials_summary() {
   v="$(read_env_var TELEGRAM_CHAT_ID "$f")"
   printf '  %-30s %s\n' "TELEGRAM_CHAT_ID" "${v:-"(empty)"}"
   printf '\n%s\n' "Prisma RBAC seed (first UI / API logins)"
-  printf '  %-30s %s\n' "Seed users (static)" "superadmin|admin|developer|viewer @ edgecontrol.local — packages/db/prisma/seeds/rbac.seed.ts"
+  printf '  %-30s %s\n' "Seed users (static)" "admin|developer|viewer @ ptsi.co.id — packages/db/prisma/seeds/rbac.seed.ts"
   printf '\n%s\n' "Grafana (observability UI — docker compose port 3010)"
   v="$(read_env_var GRAFANA_ADMIN_USER "$f")"
   printf '  %-30s %s\n' "GRAFANA_ADMIN_USER" "${v:-"(empty)"}"

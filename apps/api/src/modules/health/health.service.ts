@@ -74,13 +74,15 @@ export class HealthService {
     })
   }
 
+  /**
+   * Latest health row per accessible service (enabled and disabled), aligned with `ServiceService.list`.
+   * Operational counts should ignore disabled rows — use `enabled` on the client or `overview.summary`.
+   */
   async getLatestAll(actor: AuthenticatedUser) {
     const where = await this.accessControlService.getAccessibleServiceWhere(actor)
     const services = await this.prisma.service.findMany({
-      where: {
-        enabled: true,
-        ...(where ?? {})
-      }
+      where: where ?? {},
+      orderBy: { createdAt: 'desc' }
     })
 
     const checks = await Promise.all(
@@ -93,6 +95,8 @@ export class HealthService {
         return {
           serviceId: service.id,
           serviceName: service.name,
+          serviceType: service.type,
+          enabled: service.enabled,
           status: latest?.status ?? ServiceStatus.UP,
           latencyMs: latest?.latencyMs ?? 0,
           statusCode: latest?.statusCode ?? null,

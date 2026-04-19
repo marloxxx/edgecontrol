@@ -3,15 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { AlertCircle, Lock } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { LayoutWithSidebar } from '@/app/layout-with-sidebar'
 import { PermissionGate } from '@/components/PermissionGate'
-import { useRole } from '@/contexts/RoleContext'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Settings() {
-  const { role } = useRole()
-  const canModify = role === 'SUPER_ADMIN'
-  const isReadOnly = role === 'ADMIN'
+  const { hasPermission, role } = useAuth()
+  const canModify = hasPermission('edit:settings')
 
   return (
     <LayoutWithSidebar>
@@ -24,27 +23,13 @@ export default function Settings() {
 
         {/* Permission Notice */}
         {!canModify && (
-          <Card className="border-amber-600/50 bg-amber-900/10">
+          <Card className="border-amber-500/50 bg-amber-500/8">
             <CardContent className="pt-6 flex items-start gap-4">
-              <AlertCircle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-6 h-6 text-amber-700 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-amber-400">Limited Access</h3>
-                <p className="text-amber-300/80 mt-1">
-                  Your role ({role}) does not have permission to modify settings. Please contact a Super Admin.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {isReadOnly && (
-          <Card className="border-blue-600/50 bg-blue-900/10">
-            <CardContent className="pt-6 flex items-start gap-4">
-              <Lock className="w-6 h-6 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-blue-400">Read-Only Mode</h3>
-                <p className="text-blue-300/80 mt-1">
-                  You can view settings but cannot modify them. Contact a Super Admin to make changes.
+                <h3 className="font-semibold text-amber-900">Limited Access</h3>
+                <p className="text-amber-900/85 mt-1">
+                  Your role ({role}) does not have permission to modify settings. Please contact an Admin.
                 </p>
               </div>
             </CardContent>
@@ -62,7 +47,7 @@ export default function Settings() {
               <Input
                 defaultValue="Traefik Control Plane"
                 disabled={!canModify}
-                className="mt-2 bg-slate-900 border-border text-foreground disabled:opacity-50"
+                className="mt-2 bg-background border-border text-foreground disabled:opacity-50"
               />
             </div>
 
@@ -71,7 +56,7 @@ export default function Settings() {
               <Input
                 defaultValue="Production"
                 disabled={!canModify}
-                className="mt-2 bg-slate-900 border-border text-foreground disabled:opacity-50"
+                className="mt-2 bg-background border-border text-foreground disabled:opacity-50"
               />
             </div>
 
@@ -80,12 +65,12 @@ export default function Settings() {
               <Input
                 defaultValue="https://api.traefik.internal"
                 disabled={!canModify}
-                className="mt-2 bg-slate-900 border-border text-foreground disabled:opacity-50 font-mono text-sm"
+                className="mt-2 bg-background border-border text-foreground disabled:opacity-50 font-mono text-sm"
               />
             </div>
 
             {canModify && (
-              <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">
+              <Button className="bg-primary text-primary-foreground hover:opacity-90">
                 Save Changes
               </Button>
             )}
@@ -106,7 +91,7 @@ export default function Settings() {
                 type="number"
                 defaultValue="500"
                 disabled={!canModify}
-                className="mt-2 bg-slate-900 border-border text-foreground disabled:opacity-50"
+                className="mt-2 bg-background border-border text-foreground disabled:opacity-50"
               />
             </div>
 
@@ -118,7 +103,7 @@ export default function Settings() {
                 type="number"
                 defaultValue="5"
                 disabled={!canModify}
-                className="mt-2 bg-slate-900 border-border text-foreground disabled:opacity-50"
+                className="mt-2 bg-background border-border text-foreground disabled:opacity-50"
               />
             </div>
 
@@ -130,12 +115,12 @@ export default function Settings() {
                 type="number"
                 defaultValue="30"
                 disabled={!canModify}
-                className="mt-2 bg-slate-900 border-border text-foreground disabled:opacity-50"
+                className="mt-2 bg-background border-border text-foreground disabled:opacity-50"
               />
             </div>
 
             {canModify && (
-              <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">
+              <Button className="bg-primary text-primary-foreground hover:opacity-90">
                 Update Thresholds
               </Button>
             )}
@@ -153,7 +138,7 @@ export default function Settings() {
               <Input
                 defaultValue="alerts@example.com"
                 disabled={!canModify}
-                className="mt-2 bg-slate-900 border-border text-foreground disabled:opacity-50"
+                className="mt-2 bg-background border-border text-foreground disabled:opacity-50"
               />
             </div>
 
@@ -162,12 +147,12 @@ export default function Settings() {
               <Input
                 defaultValue="https://hooks.slack.com/services/***"
                 disabled={!canModify}
-                className="mt-2 bg-slate-900 border-border text-foreground disabled:opacity-50 font-mono text-sm"
+                className="mt-2 bg-background border-border text-foreground disabled:opacity-50 font-mono text-sm"
               />
             </div>
 
             {canModify && (
-              <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">
+              <Button className="bg-primary text-primary-foreground hover:opacity-90">
                 Update Notifications
               </Button>
             )}
@@ -176,12 +161,12 @@ export default function Settings() {
 
         {/* Danger Zone */}
         <PermissionGate permission="edit:settings">
-          <Card className="border-red-600/50 bg-red-900/10">
+          <Card className="border-red-500/50 bg-red-500/8">
             <CardHeader>
-              <CardTitle className="text-red-400">Danger Zone</CardTitle>
+              <CardTitle className="text-red-800">Danger Zone</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-red-300/80">
+              <p className="text-sm text-red-900/85">
                 These actions are irreversible. Please proceed with caution.
               </p>
 

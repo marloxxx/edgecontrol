@@ -45,28 +45,12 @@ export function normalizeRole(role: string): Role {
   return 'VIEWER'
 }
 
+const ALL_PERMISSIONS = Object.values(Permission) as Permission[]
+
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  SUPER_ADMIN: Object.values(Permission),
-  ADMIN: [
-    Permission.VIEW_DASHBOARD,
-    Permission.VIEW_SERVICES,
-    Permission.CREATE_SERVICE,
-    Permission.EDIT_SERVICE,
-    Permission.DELETE_SERVICE,
-    Permission.TOGGLE_SERVICE,
-    Permission.TEST_CONNECTION,
-    Permission.MANAGE_RATE_LIMIT,
-    Permission.MANAGE_CANARY,
-    Permission.MANAGE_CIRCUIT_BREAKER,
-    Permission.VIEW_CONFIG,
-    Permission.ROLLBACK_CONFIG,
-    Permission.VIEW_MONITORING,
-    Permission.VIEW_ALERTS,
-    Permission.MANAGE_ALERTS,
-    Permission.VIEW_AUDIT_LOGS,
-    Permission.VIEW_SETTINGS,
-    Permission.MANAGE_NODES
-  ],
+  /** Retained for existing rows; new installs use Admin as the top operator role. */
+  SUPER_ADMIN: ALL_PERMISSIONS,
+  ADMIN: ALL_PERMISSIONS,
   DEVELOPER: [
     Permission.VIEW_DASHBOARD,
     Permission.VIEW_SERVICES,

@@ -30,7 +30,19 @@ export interface AppRouterDeps {
   }
   health: {
     getByService: (serviceId: string, limit: number, actor: RouterUser) => Promise<any[]>
-    getLatestAll: (actor: RouterUser) => Promise<Array<{ serviceId: string; serviceName: string; status: string; latencyMs: number; statusCode: number | null; checkedAt: string }>>
+    getLatestAll: (actor: RouterUser) =>
+      Promise<
+        Array<{
+          serviceId: string
+          serviceName: string
+          serviceType: string
+          enabled: boolean
+          status: string
+          latencyMs: number
+          statusCode: number | null
+          checkedAt: string
+        }>
+      >
   }
   config: {
     getCurrent: (actor: RouterUser) => Promise<{ yaml: string }>

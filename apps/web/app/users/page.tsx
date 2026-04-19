@@ -95,7 +95,7 @@ export default function Users() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-slate-900/30 border border-border">
+              <div className="p-4 rounded-lg bg-muted/50 border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <RoleBadge role="VIEWER" />
                   <span className="text-sm text-muted-foreground">Read-only access</span>
@@ -103,7 +103,7 @@ export default function Users() {
                 <p className="text-sm text-foreground">View dashboards, services, and monitoring data. No modification permissions.</p>
               </div>
 
-              <div className="p-4 rounded-lg bg-slate-900/30 border border-border">
+              <div className="p-4 rounded-lg bg-muted/50 border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <RoleBadge role="DEVELOPER" />
                   <span className="text-sm text-muted-foreground">Developer access</span>
@@ -111,20 +111,14 @@ export default function Users() {
                 <p className="text-sm text-foreground">Build and operate services with alerts and monitoring within assigned scope.</p>
               </div>
 
-              <div className="p-4 rounded-lg bg-slate-900/30 border border-border">
+              <div className="p-4 rounded-lg bg-muted/50 border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <RoleBadge role="ADMIN" />
                   <span className="text-sm text-muted-foreground">Administrative access</span>
                 </div>
-                <p className="text-sm text-foreground">Full control over services, versions, and system configuration. Cannot manage users.</p>
-              </div>
-
-              <div className="p-4 rounded-lg bg-slate-900/30 border border-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <RoleBadge role="SUPER_ADMIN" />
-                  <span className="text-sm text-muted-foreground">Full system access</span>
-                </div>
-                <p className="text-sm text-foreground">Complete control including user management, system settings, and all administrative functions.</p>
+                <p className="text-sm text-foreground">
+                  Full control over services, versions, user management, system settings, and all administrative functions.
+                </p>
               </div>
             </div>
           </CardContent>

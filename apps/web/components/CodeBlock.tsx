@@ -20,15 +20,15 @@ export function CodeBlock({ code, language = 'yaml', title }: CodeBlockProps) {
   }
 
   return (
-    <div className="border border-border bg-slate-950 rounded-lg overflow-hidden">
+    <div className="border border-border bg-muted/40 rounded-lg overflow-hidden">
       {title && (
-        <div className="bg-slate-900/50 px-4 py-2 border-b border-border text-sm text-muted-foreground font-mono">
+        <div className="bg-muted px-4 py-2 border-b border-border text-sm text-muted-foreground font-mono">
           {title}
         </div>
       )}
       <div className="relative">
         <pre
-          className="p-4 overflow-x-auto font-mono text-sm text-gray-300"
+          className="p-4 overflow-x-auto font-mono text-sm text-foreground"
           data-language={language}
         >
           <code>{code}</code>
@@ -40,7 +40,7 @@ export function CodeBlock({ code, language = 'yaml', title }: CodeBlockProps) {
           onClick={handleCopy}
         >
           {copied ? (
-            <Check className="w-4 h-4 text-green-400" />
+            <Check className="w-4 h-4 text-emerald-600" />
           ) : (
             <Copy className="w-4 h-4" />
           )}

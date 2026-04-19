@@ -27,7 +27,7 @@ export type Permission =
   | 'edit:settings'
   | 'manage:nodes'
 
-export type ServiceStatus = 'UP' | 'SLOW' | 'DOWN'
+export type ServiceStatus = 'UP' | 'SLOW' | 'DOWN' | 'DISABLED'
 export type AlertSeverity = 'CRITICAL' | 'WARNING' | 'INFO'
 export type AlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
 export type ServiceType = 'api' | 'ai' | 'ws' | 'web' | 'worker'

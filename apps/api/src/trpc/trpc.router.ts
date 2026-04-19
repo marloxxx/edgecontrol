@@ -84,23 +84,27 @@ export function buildAppRouter(app: INestApplication) {
       create: async (input, actor) => toJsonDate(await nodeService.create(input, actor))
     },
     overview: {
+      /** Counts match `health.getLatestAll`: disabled services are excluded from UP/SLOW/DOWN. */
       async summary(actor: RouterUser) {
-        const services = await serviceService.list(actor)
         const openAlerts = await alertService.list('OPEN', actor)
+        const snapshot = await healthService.getLatestAll(actor)
 
         const summary = {
-          totalServices: services.length,
+          totalServices: snapshot.length,
           upServices: 0,
           slowServices: 0,
           downServices: 0,
+          disabledServices: 0,
           openAlerts: openAlerts.length
         }
 
-        for (const service of services) {
-          const latest = await healthService.getByService(service.id, 1, actor)
-          const status = latest[0]?.status ?? 'UP'
-          if (status === 'DOWN') summary.downServices += 1
-          else if (status === 'SLOW') summary.slowServices += 1
+        for (const row of snapshot) {
+          if (!row.enabled) {
+            summary.disabledServices += 1
+            continue
+          }
+          if (row.status === 'DOWN') summary.downServices += 1
+          else if (row.status === 'SLOW') summary.slowServices += 1
           else summary.upServices += 1
         }
 

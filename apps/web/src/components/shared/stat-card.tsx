@@ -29,34 +29,34 @@ export function StatCard({
   const variants: Record<StatCardVariant, { border: string; icon: string; value: string }> = {
     default: {
       border: 'border-l-[3px] border-l-cyan-accent',
-      icon: 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/20',
+      icon: 'bg-cyan-muted text-cyan-accent border border-cyan-border',
       value: 'text-cyan-accent'
     },
     warning: {
       border: 'border-l-[3px] border-l-amber-500',
-      icon: 'bg-amber-500/20 text-amber-200 border border-amber-500/25',
-      value: 'text-amber-300'
+      icon: 'bg-amber-500/12 text-amber-800 border border-amber-500/30',
+      value: 'text-amber-800'
     },
     danger: {
       border: 'border-l-[3px] border-l-red-500',
-      icon: 'bg-red-500/20 text-red-200 border border-red-500/25',
-      value: 'text-red-300'
+      icon: 'bg-red-500/10 text-red-800 border border-red-500/25',
+      value: 'text-red-800'
     },
     accent: {
       border: 'border-l-[3px] border-l-emerald-500',
-      icon: 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/25',
-      value: 'text-emerald-300'
+      icon: 'bg-emerald-500/10 text-emerald-800 border border-emerald-500/25',
+      value: 'text-emerald-800'
     }
   }
 
   let trendIcon = Minus
-  let trendClassName = 'bg-zinc-700/30 text-zinc-300'
+  let trendClassName = 'bg-muted text-muted-foreground'
   if (trend?.direction === 'up') {
     trendIcon = TrendingUp
-    trendClassName = 'bg-emerald-500/15 text-emerald-300'
+    trendClassName = 'bg-emerald-500/10 text-emerald-800'
   } else if (trend?.direction === 'down') {
     trendIcon = TrendingDown
-    trendClassName = 'bg-red-500/15 text-red-300'
+    trendClassName = 'bg-red-500/10 text-red-800'
   }
   const TrendIcon = trendIcon
 
@@ -67,7 +67,7 @@ export function StatCard({
       <CardContent className="px-4 py-0">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1 min-w-0">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">{title}</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{title}</p>
             <p className={cn('text-3xl font-bold font-mono', style.value)}>{value}</p>
             {trend ? (
               <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]', trendClassName)}>

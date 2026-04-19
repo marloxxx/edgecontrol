@@ -8,14 +8,14 @@ import { VersionService } from '../modules/version/version.service'
 export class RestController {
   private readonly systemActor = {
     id: 'system-rest',
-    email: 'system@edgecontrol.local',
-    role: 'SUPER_ADMIN'
+    email: 'admin@ptsi.co.id',
+    role: 'ADMIN'
   }
 
   constructor(
     @Inject(AlertService) private readonly alertService: AlertService,
     @Inject(VersionService) private readonly versionService: VersionService
-  ) {}
+  ) { }
 
   @Get('/health')
   health() {

@@ -13,10 +13,10 @@ interface ModuleSummaryProps {
 
 const colorMap: Record<NonNullable<SummaryItem['color']>, { value: string }> = {
   primary: { value: 'text-cyan-accent' },
-  secondary: { value: 'text-zinc-200' },
-  accent: { value: 'text-emerald-300' },
-  warning: { value: 'text-amber-300' },
-  danger: { value: 'text-red-300' }
+  secondary: { value: 'text-foreground' },
+  accent: { value: 'text-emerald-800' },
+  warning: { value: 'text-amber-800' },
+  danger: { value: 'text-red-800' }
 }
 
 export function ModuleSummary({ items }: ModuleSummaryProps) {

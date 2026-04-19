@@ -311,12 +311,15 @@ circuit_breaker:
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#262c38" />
-                      <XAxis dataKey="name" stroke="#9ca3af" />
-                      <YAxis stroke="#9ca3af" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" />
+                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+                      <YAxis stroke="hsl(var(--muted-foreground))" />
                       <Tooltip
-                        contentStyle={{ backgroundColor: '#141419', border: '1px solid #262c38' }}
-                        labelStyle={{ color: '#e4e4e7' }}
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--chart-tooltip-bg))',
+                          border: '1px solid hsl(var(--chart-tooltip-border))'
+                        }}
+                        labelStyle={{ color: 'hsl(var(--chart-tooltip-fg))' }}
                       />
                       <Line type="monotone" dataKey="latency" stroke="var(--brand-secondary)" strokeWidth={2} dot={false} />
                     </LineChart>
@@ -377,7 +380,7 @@ circuit_breaker:
                 </CardHeader>
                 <CardContent>
                   <p className="text-amber-200 text-sm">
-                    Insufficient permissions to manage config. Ask an Admin or Super Admin for elevated access.
+                    Insufficient permissions to manage config. Ask an Admin for elevated access.
                   </p>
                 </CardContent>
               </Card>

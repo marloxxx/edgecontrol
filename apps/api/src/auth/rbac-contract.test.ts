@@ -7,10 +7,10 @@ test('normalizes legacy OPERATOR role to DEVELOPER', () => {
   assert.equal(normalizeRole('OPERATOR'), 'DEVELOPER')
 })
 
-test('admin permissions match expected service operations', () => {
+test('admin has full panel permissions including settings and user management', () => {
   assert.equal(hasPermission('ADMIN', Permission.CREATE_SERVICE), true)
-  assert.equal(hasPermission('ADMIN', Permission.EDIT_SETTINGS), false)
-  assert.equal(hasPermission('ADMIN', Permission.MANAGE_ROLES), false)
+  assert.equal(hasPermission('ADMIN', Permission.EDIT_SETTINGS), true)
+  assert.equal(hasPermission('ADMIN', Permission.MANAGE_ROLES), true)
 })
 
 test('developer remains read-only for service mutations', () => {

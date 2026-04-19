@@ -9,7 +9,6 @@ const SEED_EMAIL_DOMAIN = 'ptsi.co.id'
 const SEED_PASSWORD = 'ChangeMe123456!'
 
 const SEED_USERS: { role: Role; localPart: string }[] = [
-  { role: Role.SUPER_ADMIN, localPart: 'superadmin' },
   { role: Role.ADMIN, localPart: 'admin' },
   { role: 'DEVELOPER' as Role, localPart: 'developer' },
   { role: Role.VIEWER, localPart: 'viewer' }

@@ -3,20 +3,21 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --color-background: #0a0a0f;
-  --color-surface: #0d0d14;
-  --color-surface-raised: #111118;
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-subtle: rgba(255, 255, 255, 0.03);
-  --color-overlay-3: rgba(255, 255, 255, 0.03);
-  --color-overlay-5: rgba(255, 255, 255, 0.05);
+  --color-background: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f8fafc;
+  --color-border: rgba(15, 23, 42, 0.08);
+  --color-border-subtle: rgba(15, 23, 42, 0.05);
+  --color-overlay-3: rgba(15, 23, 42, 0.03);
+  --color-overlay-5: rgba(15, 23, 42, 0.06);
 
-  --color-cyan-accent: #00d4ff;
-  --color-cyan-muted: rgba(0, 212, 255, 0.12);
-  --color-cyan-border: rgba(0, 212, 255, 0.25);
-  --color-emerald-accent: #10b981;
-  --color-amber-accent: #f59e0b;
-  --color-red-accent: #ef4444;
+  /* Darker accents for contrast on light surfaces */
+  --color-cyan-accent: #0891b2;
+  --color-cyan-muted: rgba(8, 145, 178, 0.12);
+  --color-cyan-border: rgba(8, 145, 178, 0.35);
+  --color-emerald-accent: #047857;
+  --color-amber-accent: #b45309;
+  --color-red-accent: #b91c1c;
   --color-slate-muted: #64748b;
 
   --font-mono: "Geist Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
@@ -30,15 +31,15 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  --shadow-glow-cyan: 0 0 20px rgba(0, 212, 255, 0.15);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-glow-cyan: 0 0 24px rgba(8, 145, 178, 0.12);
 
-  /* Chart palette — aligned with shadcn / frontend-adv dark tokens for Recharts */
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  /* Chart palette — legible on light backgrounds */
+  --chart-1: oklch(0.45 0.18 264);
+  --chart-2: oklch(0.5 0.14 162);
+  --chart-3: oklch(0.55 0.16 70);
+  --chart-4: oklch(0.48 0.2 303);
+  --chart-5: oklch(0.5 0.18 16);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -52,32 +53,41 @@
     --brand-primary-hover: #123c69;
     --brand-secondary: #00b0a8;
     --brand-secondary-hover: #01968f;
-    --brand-cyan: #00b7d7;
-    --background: 0 0% 4%;
-    --foreground: 210 40% 95%;
-    --card: 240 10% 6%;
-    --card-foreground: 210 40% 95%;
-    --popover: 240 10% 6%;
-    --popover-foreground: 210 40% 95%;
-    --border: 240 6% 12%;
-    --input: 240 6% 10%;
-    --primary: 192 100% 50%;
-    --primary-foreground: 0 0% 0%;
-    --muted: 240 6% 14%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 240 6% 14%;
-    --accent-foreground: 210 40% 95%;
-    --destructive: 0 84% 60%;
+    --brand-cyan: #0891b2;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --primary: 192 91% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 42%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --ring: 192 100% 50%;
-    --sidebar: 240 12% 7%;
-    --sidebar-foreground: 210 40% 95%;
-    --sidebar-border: 240 6% 12%;
-    --sidebar-accent: 192 100% 50%;
-    --sidebar-accent-foreground: 210 40% 95%;
-    --sidebar-primary: 192 100% 50%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-ring: 192 100% 50%;
+    --ring: 192 91% 36%;
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-primary: 192 91% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-ring: 192 91% 36%;
+
+    /* Recharts / inline SVG — use with hsl(var(--chart-grid)) etc. */
+    --chart-grid: 214 32% 88%;
+    --chart-tooltip-bg: 0 0% 100%;
+    --chart-tooltip-border: 214 32% 88%;
+    --chart-tooltip-fg: 222 47% 11%;
+    --chart-line-primary: 192 91% 36%;
   }
 
   * {
@@ -93,8 +103,29 @@
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    scrollbar-color: rgba(15, 23, 42, 0.2) transparent;
   }
+}
+
+/* Bridge :root HSL tokens to Tailwind v4 colour utilities (popover, selects, menus). */
+@theme inline {
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
 }
 
 @keyframes status-pulse {

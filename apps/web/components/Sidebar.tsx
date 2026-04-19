@@ -46,7 +46,7 @@ export function Sidebar() {
     <>
       <button
         type="button"
-        className="lg:hidden fixed z-50 left-3 top-3 h-9 w-9 rounded-md border border-border bg-surface-raised text-zinc-300 flex items-center justify-center"
+        className="lg:hidden fixed z-50 left-3 top-3 h-9 w-9 rounded-md border border-border bg-surface-raised text-foreground flex items-center justify-center"
         onClick={() => setIsExpandedMobile((value) => !value)}
       >
         <Menu className="h-4 w-4" />
@@ -61,7 +61,7 @@ export function Sidebar() {
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-lg font-bold text-cyan-accent font-mono">TCP</h1>
             </div>
-            <p className={`text-xs text-slate-400 ${isExpandedMobile ? 'block' : 'hidden lg:block'}`}>Control Plane</p>
+            <p className={`text-xs text-muted-foreground ${isExpandedMobile ? 'block' : 'hidden lg:block'}`}>Control Plane</p>
           </div>
 
           {/* Navigation */}
@@ -73,14 +73,14 @@ export function Sidebar() {
                     variant="ghost"
                     title={item.label}
                     className={`w-full ${isExpandedMobile ? 'justify-start px-3' : 'justify-center px-2 lg:justify-start lg:px-3'} gap-3 text-sm rounded-md ${isActive(item.href)
-                        ? 'border-l-2 border-cyan-accent bg-cyan-500/10 text-white'
-                        : 'text-zinc-300 hover:bg-overlay-3'
+                        ? 'border-l-2 border-cyan-accent bg-cyan-muted text-foreground'
+                        : 'text-muted-foreground hover:bg-overlay-3 hover:text-foreground'
                       }`}
                   >
                     <item.icon className="w-4 h-4" />
                     <span className={`${isExpandedMobile ? 'inline' : 'hidden lg:inline'}`}>{item.label}</span>
                     {item.badge ? (
-                      <span className={`ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold bg-red-500/15 text-red-300 border border-red-500/25 ${isExpandedMobile ? 'inline' : 'hidden lg:inline'}`}>
+                      <span className={`ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold bg-red-500/10 text-red-800 border border-red-500/25 ${isExpandedMobile ? 'inline' : 'hidden lg:inline'}`}>
                         {item.badge}
                       </span>
                     ) : null}
@@ -93,22 +93,22 @@ export function Sidebar() {
           {/* Footer */}
           <div className={`border-t border-border space-y-3 flex-shrink-0 ${isExpandedMobile ? 'p-3' : 'p-2 lg:p-3'}`}>
             <div className={`${isExpandedMobile ? 'block' : 'hidden lg:block'}`}>
-              <div className="rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-xs text-zinc-300">
+              <div className="rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-xs text-foreground">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
                   <span>Synced 3s ago</span>
                 </div>
-                <p className="mt-1 text-[11px] text-zinc-500">dynamic.d/01-managed.yml → edge</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">dynamic.d/01-managed.yml → edge</p>
               </div>
             </div>
 
             <div className={`bg-surface-raised rounded-lg border border-border-subtle p-3 ${isExpandedMobile ? 'block' : 'hidden lg:block'}`}>
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center font-mono text-xs">
+                <div className="h-8 w-8 rounded-full bg-cyan-muted text-cyan-accent flex items-center justify-center font-mono text-xs">
                   {user?.email?.slice(0, 2).toUpperCase() ?? '—'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs text-zinc-300">{user?.email ?? '—'}</p>
+                  <p className="truncate text-xs text-foreground">{user?.email ?? '—'}</p>
                   <div className="mt-1">
                     <RoleBadge role={role} />
                   </div>
@@ -117,7 +117,7 @@ export function Sidebar() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-zinc-400 hover:text-white"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
                   onClick={() => {
                     logout()
                     void navigate({ to: '/login', search: { redirect: pathname || '/overview' } })

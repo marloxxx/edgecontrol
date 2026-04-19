@@ -1,5 +1,6 @@
 # Traefik static configuration (read-only in the container).
-# Dynamic HTTP routes live in dynamic.yml (written by the API). ACME_EMAIL is supplied via container env.
+# File provider: dynamic.yml (API-managed). Docker provider flags are appended via docker-compose command
+# so the attach network name is interpolated reliably. ACME_EMAIL comes from container env.
 global:
   checkNewVersion: true
   sendAnonymousUsage: false

@@ -40,6 +40,8 @@ ensure_traefik_static_rendered() {
   else
     warn "No .env — using checked-in docker/traefik/dynamic.d/00-static.yml defaults (run ./scripts/render-traefik-static.sh after creating .env)."
   fi
+  local ssl="$ROOT/scripts/ensure-traefik-ssl.sh"
+  [[ -f "$ssl" ]] && bash "$ssl"
 }
 
 require_docker_cli() {

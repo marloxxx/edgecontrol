@@ -47,6 +47,10 @@ letsencrypt/
 # API-written Traefik fragment (omit when empty so Traefik merge is not broken)
 docker/traefik/dynamic.d/01-managed.yml
 
+# Traefik TLS material under ssl/ (keep only .gitkeep tracked)
+docker/traefik/ssl/*
+!docker/traefik/ssl/.gitkeep
+
 # --- v0 sandbox (legacy) ---
 __v0_runtime_loader.js
 __v0_devtools.tsx

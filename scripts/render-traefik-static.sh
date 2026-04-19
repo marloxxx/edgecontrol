@@ -30,3 +30,8 @@ sed \
   "$TEMPLATE" >"$tmp"
 mv "$tmp" "$OUT"
 echo "Wrote ${OUT} (s3=${MINIO_API_HOST}, minio=${MINIO_CONSOLE_HOST})"
+
+ENSURE_SSL="${ROOT}/scripts/ensure-traefik-ssl.sh"
+if [[ -f "$ENSURE_SSL" ]]; then
+  bash "$ENSURE_SSL"
+fi

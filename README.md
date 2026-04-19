@@ -119,7 +119,7 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 
 **Panel and API:** use **loopback** (**`http://127.0.0.1:8080`** / **`:3001`**) or put the panel on **Traefik** by creating a **managed** service whose **public domain** is your **`PANEL_HOST`** (default would be **`edgecontrol.<BASE_DOMAIN>`** — **`PANEL_HOST`** in **`.env`** is still used for **`CORS_ORIGIN`**, Compose, and docs; it is **not** emitted into **`00-static.yml`**). The API is **not** on Traefik; the panel **nginx** proxies **`/trpc`** and **`/api`** to **`http://api:3000`**. Set **`CORS_ORIGIN`** to the **exact** panel origin the browser uses. Local **`pnpm dev`** defaults tRPC to **http://localhost:3001** unless **`VITE_API_URL`** is set.
 
-**Traefik (file provider only):** **`./docker/traefik/traefik.yml`** loads **`providers.file.directory`** → **`./docker/traefik/dynamic.d/`** (all **`*.yml`** merged). **`00-static.yml`** is generated from **`.env`** (**`BASE_DOMAIN`**, optional **`MINIO_*_HOST`**) and defines **MinIO** routers only. **`01-managed.yml`** is written only by the API (**Regenerate** in the UI) and carries **edge / panel** hostnames when you model them as managed services. See **`docker-compose.proxy.yml`** when attaching Traefik, **`web`**, and **`minio`** to an external **`proxy`** network. If Traefik returns **404**, re-run **`./scripts/render-traefik-static.sh`**, **Regenerate**, check **DNS** / **`.env`**, then **`docker compose up -d --force-recreate traefik`**.
+**Traefik (file provider only):** **`./docker/traefik/traefik.yml`** loads **`providers.file.directory`** → **`./docker/traefik/dynamic.d/`** (all **`*.yml`** merged). **`./docker/traefik/ssl/`** is mounted at **`/etc/traefik/ssl`** for the **default** TLS certificate (**`cert.pem`** + **`key.pem`**). Run **`./scripts/ensure-traefik-ssl.sh`** once (also invoked from **`render-traefik-static.sh`** / **`setup.sh`**) to create a **self-signed** pair for local use; replace with real PEMs for production. Routers that set **`tls.certResolver: letsencrypt`** still obtain Let’s Encrypt certificates. **`00-static.yml`** is generated from **`.env`** (**`BASE_DOMAIN`**, optional **`MINIO_*_HOST`**) and defines **MinIO** routers only. **`01-managed.yml`** is written only by the API (**Regenerate** in the UI). See **`docker-compose.proxy.yml`** when attaching Traefik, **`web`**, and **`minio`** to an external **`proxy`** network. If Traefik returns **404**, re-run **`./scripts/render-traefik-static.sh`**, **Regenerate**, check **DNS** / **`.env`**, then **`docker compose up -d --force-recreate traefik`**.
 
 **Managed routes:** **Regenerate** in the UI after changing managed services; the API overwrites **`dynamic.d/01-managed.yml`** only (MinIO routes in **`00-static.yml`** are unchanged unless you re-render static).
 
@@ -128,6 +128,8 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 **MinIO behind Traefik:** hostnames in **`00-static.yml`** must match **`MINIO_BROWSER_REDIRECT_URL`** / **`MINIO_SERVER_URL`** (Compose still derives those from **`BASE_DOMAIN`** unless overridden). Shared **`proxy`** network: **`docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d`** — recreate **`traefik`**, **`web`**, **`minio`** so Traefik can reach backends on that network.
 
 **ACME `rejectedIdentifier` / “forbidden by policy”:** Let’s Encrypt refuses some names (for example **`*.example.com`**). Use a real public hostname on **managed** services in the UI, with DNS to this host. **`BASE_DOMAIN`** in `.env` is mainly for **`ACME_EMAIL`** derivation (`admin@<BASE_DOMAIN>` when you still have the example placeholder); you can `export EDGE_BASE_DOMAIN=yourdomain.com` before `./scripts/setup.sh full` to replace `example.com`.
+
+**ACME staging vs production:** Compose passes **`--certificatesresolvers.letsencrypt.acme.caserver`** from **`ACME_CA_SERVER`** (default **production** `https://acme-v02.api.letsencrypt.org/directory`). Set **`ACME_CA_SERVER=https://acme-staging-v02.api.letsencrypt.org/directory`** in **`.env`** only while debugging (staging certs are **not** trusted by browsers). Remove it or switch back to production before go-live; use a **separate** `acme.json` volume or delete staging data in **`letsencrypt`** if you flip between environments. **`docker compose up -d --force-recreate traefik`** after changes.
 
 **ACME HTTP-01 still fails:** check **DNS → this host**, **:80** reachable, and that nothing **in front** of Traefik answers **`/.well-known/acme-challenge/`** with **404**. This stack’s Traefik does **not** load Docker labels; if you run **another** Traefik on the same IP with **`@docker`** routers for the same **`Host()`**, fix that instance’s labels or consolidate to one edge proxy.
 
@@ -191,7 +193,7 @@ packages/
   trpc/         # Shared tRPC router types / client
   config/       # Shared configuration
 docker/
-  traefik/      # traefik.yml + dynamic.d/ (00-static MinIO from .env, 01-managed from API)
+  traefik/      # traefik.yml + dynamic.d/ + ssl/ (default TLS: cert.pem + key.pem → scripts/ensure-traefik-ssl.sh)
   prometheus/   # Prometheus scrape config
   grafana/      # Grafana provisioning + dashboards
 scripts/

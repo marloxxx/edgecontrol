@@ -6,6 +6,8 @@ services:
     command:
       - --configFile=/etc/traefik/traefik.yml
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@${BASE_DOMAIN:-example.com}}
+      # ACME_CA_SERVER: production by default; set to Let's Encrypt staging in .env while debugging (see .env.example).
+      - --certificatesresolvers.letsencrypt.acme.caserver=${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
     environment:
       # Let's Encrypt rejects an empty contact; derive admin@<BASE_DOMAIN> when ACME_EMAIL is unset/blank in .env.
       ACME_EMAIL: ${ACME_EMAIL:-admin@${BASE_DOMAIN:-example.com}}
@@ -15,6 +17,7 @@ services:
     volumes:
       - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./docker/traefik/dynamic.d:/etc/traefik/dynamic.d
+      - ./docker/traefik/ssl:/etc/traefik/ssl:ro
       - letsencrypt:/letsencrypt
     networks:
       - public

@@ -153,9 +153,8 @@ services:
       - migrate
     environment:
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
-    # Host tree overlays the image copy so `prisma db seed` / migrations see your latest edits without rebuilding migrate.
     volumes:
-      - ./packages/db:/app/packages/db
+      - ./packages/db/prisma:/app/packages/db/prisma
     depends_on:
       db:
         condition: service_healthy

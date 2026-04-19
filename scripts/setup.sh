@@ -774,7 +774,7 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
       (same as rm .env then full). Default 0. Use when you intentionally want a clean template + regenerated secrets.
     replace_env_line / patch_insecure only change values for keys already present; new keys come from SYNC_ENV_FROM_EXAMPLE or a fresh copy.
     Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
-    Prisma RBAC seed is static in packages/db/prisma/seeds/rbac.seed.ts (emails + password). Docker migrate bind-mounts ./packages/db so edits apply on the next db reset/seed without rebuilding the image.
+    Prisma RBAC seed is static in packages/db/prisma/seeds/rbac.seed.ts (emails + password). Docker migrate bind-mounts ./packages/db/prisma (not the whole db package) so seed/migrations track the host without breaking pnpm/prisma in the image.
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).
 
 Deploy commands (stack = Docker only; no host pnpm):
@@ -877,14 +877,14 @@ main() {
       ;;
     db)
       shift || true
-      if [[ "${1:-}" == "reset" ]]; then
+      if [[ "${1:-}" == "reset" || "${1:-}" == "rezet" ]]; then
         shift || true
         cmd_reset "$@"
       else
         cmd_db "$@"
       fi
       ;;
-    reset)
+    reset|rezet)
       shift || true
       cmd_reset "$@"
       ;;

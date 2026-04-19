@@ -4,11 +4,9 @@ services:
     container_name: edgecontrol-traefik
     command:
       - --configFile=/etc/traefik/traefik.yml
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal
     environment:
       ACME_EMAIL: ${ACME_EMAIL}
+      DOCKER_INTERNAL_NETWORK: ${COMPOSE_PROJECT_NAME:-edgecontrol}_internal
       DOCKER_API_VERSION: "1.47"
     ports:
       - "80:80"

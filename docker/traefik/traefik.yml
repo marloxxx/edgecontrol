@@ -1,6 +1,7 @@
 # Traefik static configuration (read-only in the container).
-# File provider: dynamic.yml (API-managed). Docker provider flags are appended via docker-compose command
-# so the attach network name is interpolated reliably. ACME_EMAIL comes from container env.
+# Both providers must live here: when using --configFile, CLI --providers.docker flags are ignored if
+# the static file already defines `providers` (file-only → no Docker routers → 404 on labelled hosts).
+# Set DOCKER_INTERNAL_NETWORK on the container (compose interpolates COMPOSE_PROJECT_NAME → e.g. edgecontrol_internal).
 global:
   checkNewVersion: true
   sendAnonymousUsage: false
@@ -15,6 +16,10 @@ providers:
   file:
     filename: /etc/traefik/dynamic.yml
     watch: true
+  docker:
+    endpoint: unix:///var/run/docker.sock
+    exposedByDefault: false
+    network: ${DOCKER_INTERNAL_NETWORK}
 
 entryPoints:
   web:

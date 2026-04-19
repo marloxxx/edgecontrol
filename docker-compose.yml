@@ -2,6 +2,7 @@ services:
   traefik:
     image: traefik:v3.6
     container_name: edgecontrol-traefik
+    restart: unless-stopped
     command:
       - --configFile=/etc/traefik/traefik.yml
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@${BASE_DOMAIN:-example.com}}
@@ -28,6 +29,7 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     container_name: edgecontrol-api
+    restart: unless-stopped
     ports:
       - "127.0.0.1:${API_PUBLISH_PORT:-3001}:3000"
     environment:
@@ -67,6 +69,7 @@ services:
       dockerfile: apps/api/Dockerfile
     command: ["./node_modules/.bin/tsx", "src/worker/standalone-worker.ts"]
     container_name: edgecontrol-worker
+    restart: unless-stopped
     environment:
       API_PORT: 3000
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
@@ -94,6 +97,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     container_name: edgecontrol-web
+    restart: unless-stopped
     # Panel HTTPS is defined in docker/traefik/dynamic.d/00-static.yml (render from .env — no Docker labels).
     ports:
       - "127.0.0.1:${PANEL_PUBLISH_PORT:-8080}:80"
@@ -105,6 +109,7 @@ services:
   db:
     image: postgres:16-alpine
     container_name: edgecontrol-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -123,6 +128,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: edgecontrol-redis
+    restart: unless-stopped
     networks:
       - internal
 
@@ -198,6 +204,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: edgecontrol-prometheus
+    restart: unless-stopped
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -217,6 +224,7 @@ services:
   grafana:
     image: grafana/grafana:11.3.1
     container_name: edgecontrol-grafana
+    restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}

@@ -6,7 +6,9 @@ services:
       - --configFile=/etc/traefik/traefik.yml
     environment:
       ACME_EMAIL: ${ACME_EMAIL}
-      DOCKER_INTERNAL_NETWORK: ${COMPOSE_PROJECT_NAME:-edgecontrol}_internal
+      # Same value must appear on traefik.docker.network labels (web, api, minio). Override when Traefik
+      # shares an external edge network (e.g. proxy): set TRAEFIK_DOCKER_NETWORK=proxy and use docker-compose.proxy.yml.
+      DOCKER_INTERNAL_NETWORK: ${TRAEFIK_DOCKER_NETWORK:-${COMPOSE_PROJECT_NAME:-edgecontrol}_internal}
       DOCKER_API_VERSION: "1.47"
     ports:
       - "80:80"
@@ -27,7 +29,7 @@ services:
     container_name: edgecontrol-api
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
+      - "traefik.docker.network=${TRAEFIK_DOCKER_NETWORK:-${COMPOSE_PROJECT_NAME:-edgecontrol}_internal}"
       - "traefik.http.routers.edgecontrol-api.rule=Host(`${API_HOST:-api.${BASE_DOMAIN}}`)"
       - "traefik.http.routers.edgecontrol-api.entrypoints=websecure"
       - "traefik.http.routers.edgecontrol-api.tls.certresolver=letsencrypt"
@@ -101,7 +103,7 @@ services:
     container_name: edgecontrol-web
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
+      - "traefik.docker.network=${TRAEFIK_DOCKER_NETWORK:-${COMPOSE_PROJECT_NAME:-edgecontrol}_internal}"
       - "traefik.http.routers.edgecontrol-panel.rule=Host(`${PANEL_HOST:-edgecontrol.${BASE_DOMAIN}}`)"
       - "traefik.http.routers.edgecontrol-panel.entrypoints=websecure"
       - "traefik.http.routers.edgecontrol-panel.tls.certresolver=letsencrypt"
@@ -164,6 +166,9 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      # Set when the console/API are reached via Traefik HTTPS (avoids wrong redirects after routing works).
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL:-}
+      MINIO_SERVER_URL: ${MINIO_SERVER_URL:-}
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
@@ -171,7 +176,7 @@ services:
       - minio_data:/data
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-edgecontrol}_internal"
+      - "traefik.docker.network=${TRAEFIK_DOCKER_NETWORK:-${COMPOSE_PROJECT_NAME:-edgecontrol}_internal}"
       - "traefik.http.routers.edgecontrol-minio-s3.rule=Host(`${MINIO_API_HOST:-s3.${BASE_DOMAIN}}`)"
       - "traefik.http.routers.edgecontrol-minio-s3.entrypoints=websecure"
       - "traefik.http.routers.edgecontrol-minio-s3.tls.certresolver=letsencrypt"

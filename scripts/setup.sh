@@ -364,18 +364,6 @@ patch_insecure_or_missing_secrets() {
     changed=1
   fi
 
-  # Dev-friendly default for Prisma RBAC seed users (see packages/db/prisma/seeds/rbac.seed.ts and docker-compose).
-  v="$(read_env_var RBAC_SEED_PASSWORD "$f")"
-  if [[ -z "$v" ]]; then
-    np='ChangeMe123456!'
-    if grep -q "^RBAC_SEED_PASSWORD=" "$f" 2>/dev/null; then
-      replace_env_line RBAC_SEED_PASSWORD "$np" "$f"
-    else
-      printf '\nRBAC_SEED_PASSWORD=%s\n' "$np" >>"$f"
-    fi
-    changed=1
-  fi
-
   v="$(read_env_var GRAFANA_ADMIN_PASSWORD "$f")"
   if [[ -z "$v" || "$v" == "ChangeMeGrafana!" ]]; then
     replace_env_line GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)" "$f"
@@ -427,7 +415,7 @@ ensure_env_for_stack() {
     if [[ "${GENERATE_SECRETS:-1}" == "1" || "${AUTO_SETUP:-1}" == "1" ]]; then
       if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
         apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
-        log "Generated secrets in $ENV_FILE (JWT, JWT_REFRESH_SECRET, DB, MinIO, Grafana; REDIS_URL set for internal compose). RBAC seed password defaults to ChangeMe123456! when unset."
+        log "Generated secrets in $ENV_FILE (JWT, JWT_REFRESH_SECRET, DB, MinIO, Grafana; REDIS_URL set for internal compose). RBAC seed users are static in packages/db/prisma/seeds/rbac.seed.ts."
       fi
     else
       warn "GENERATE_SECRETS=0 — fill JWT_SECRET, JWT_REFRESH_SECRET (optional; API falls back to JWT_SECRET if unset), DB_PASSWORD, DATABASE_URL, REDIS_URL, and URLs in $ENV_FILE yourself."
@@ -549,11 +537,7 @@ print_credentials_summary() {
   v="$(read_env_var TELEGRAM_CHAT_ID "$f")"
   printf '  %-30s %s\n' "TELEGRAM_CHAT_ID" "${v:-"(empty)"}"
   printf '\n%s\n' "Prisma RBAC seed (first UI / API logins)"
-  v="$(read_env_var BASE_DOMAIN "$f")"
-  printf '  %-30s %s\n' "Seed user emails" "superadmin, admin, developer, viewer @ ${v:-"(set BASE_DOMAIN)"}"
-  printf '  %-30s %s\n' "Optional overrides" "RBAC_*_EMAIL / RBAC_*_PASSWORD in .env (see rbac.seed.ts)"
-  v="$(read_env_var RBAC_SEED_PASSWORD "$f")"
-  printf '  %-30s %s\n' "RBAC_SEED_PASSWORD" "${v:-"(empty — compose default ChangeMe123456!)"}"
+  printf '  %-30s %s\n' "Seed users (static)" "superadmin|admin|developer|viewer @ edgecontrol.local — packages/db/prisma/seeds/rbac.seed.ts"
   printf '\n%s\n' "Grafana (observability UI — docker compose port 3010)"
   v="$(read_env_var GRAFANA_ADMIN_USER "$f")"
   printf '  %-30s %s\n' "GRAFANA_ADMIN_USER" "${v:-"(empty)"}"
@@ -790,7 +774,7 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
       (same as rm .env then full). Default 0. Use when you intentionally want a clean template + regenerated secrets.
     replace_env_line / patch_insecure only change values for keys already present; new keys come from SYNC_ENV_FROM_EXAMPLE or a fresh copy.
     Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
-    Prisma seed users default to <role>@<BASE_DOMAIN>; RBAC_SEED_PASSWORD is set to ChangeMe123456! when empty (override for production).
+    Prisma RBAC seed is static in packages/db/prisma/seeds/rbac.seed.ts (emails + password); ./scripts/${ME} seed refreshes hashes in the DB.
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).
 
 Deploy commands (stack = Docker only; no host pnpm):

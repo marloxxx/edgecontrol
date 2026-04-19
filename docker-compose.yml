@@ -58,11 +58,20 @@ services:
         condition: service_started
     networks:
       - internal
+    # Use 127.0.0.1 (not localhost) so glibc/Alpine does not prefer ::1 when the app is IPv4-only.
+    # Node's fetch avoids relying on wget/curl in the slim API image.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
       interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 60s
 
   worker:
     build:
@@ -144,18 +153,6 @@ services:
       - migrate
     environment:
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db:5432/edgecontrol
-      BASE_DOMAIN: ${BASE_DOMAIN:-example.com}
-      RBAC_SEED_PASSWORD: ${RBAC_SEED_PASSWORD:-ChangeMe123456!}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      RBAC_SUPER_ADMIN_EMAIL: ${RBAC_SUPER_ADMIN_EMAIL:-}
-      RBAC_SUPER_ADMIN_PASSWORD: ${RBAC_SUPER_ADMIN_PASSWORD:-}
-      RBAC_ADMIN_EMAIL: ${RBAC_ADMIN_EMAIL:-}
-      RBAC_ADMIN_PASSWORD: ${RBAC_ADMIN_PASSWORD:-}
-      RBAC_DEVELOPER_EMAIL: ${RBAC_DEVELOPER_EMAIL:-}
-      RBAC_DEVELOPER_PASSWORD: ${RBAC_DEVELOPER_PASSWORD:-}
-      RBAC_VIEWER_EMAIL: ${RBAC_VIEWER_EMAIL:-}
-      RBAC_VIEWER_PASSWORD: ${RBAC_VIEWER_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

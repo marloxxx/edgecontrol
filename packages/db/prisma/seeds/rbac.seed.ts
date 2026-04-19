@@ -1,91 +1,41 @@
-import { config as loadDotenv } from 'dotenv'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { PrismaClient, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
-// Monorepo root `.env` (same file as Docker Compose / setup). From `packages/db/prisma/seeds` → four levels up.
-const __dirname = dirname(fileURLToPath(import.meta.url))
-loadDotenv({ path: resolve(__dirname, '../../../../.env') })
+/**
+ * Static first-boot panel users (not read from `.env`).
+ * Password is the same for every role until changed in production.
+ */
+const SEED_EMAIL_DOMAIN = 'ptsi.co.id'
+const SEED_PASSWORD = 'ChangeMe123456!'
 
-interface RbacSeedUser {
-  role: Role
-  email: string
-  password: string
-}
-
-const env =
-  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
-
-function seedBaseDomain(): string {
-  const d = env.BASE_DOMAIN?.trim()
-  // Keep in sync with `.env.example` and `docker-compose.yml` migrate service default.
-  return d && d.length > 0 ? d : 'example.com'
-}
-
-function nonEmpty(s: string | undefined): string | undefined {
-  const t = s?.trim()
-  return t ? t : undefined
-}
-
-function getSeedUsers(): RbacSeedUser[] {
-  const d = seedBaseDomain()
-  const DEFAULT_SEED_PASSWORD = nonEmpty(env.RBAC_SEED_PASSWORD) ?? 'ChangeMe123456!'
-
-  const pickEmail = (explicit: string | undefined, adminFallback: string | undefined, local: string) => {
-    const raw = nonEmpty(explicit) ?? nonEmpty(adminFallback) ?? `${local}@${d}`
-    return raw.toLowerCase()
-  }
-
-  const pickPassword = (...vals: (string | undefined)[]) =>
-    vals.map(nonEmpty).find(Boolean) ?? DEFAULT_SEED_PASSWORD
-
-  return [
-    {
-      role: Role.SUPER_ADMIN,
-      email: pickEmail(env.RBAC_SUPER_ADMIN_EMAIL, env.ADMIN_EMAIL, 'superadmin'),
-      password: pickPassword(env.RBAC_SUPER_ADMIN_PASSWORD, env.ADMIN_PASSWORD)
-    },
-    {
-      role: Role.ADMIN,
-      email: pickEmail(env.RBAC_ADMIN_EMAIL, undefined, 'admin'),
-      password: pickPassword(env.RBAC_ADMIN_PASSWORD)
-    },
-    {
-      role: 'DEVELOPER' as Role,
-      email: pickEmail(env.RBAC_DEVELOPER_EMAIL, undefined, 'developer'),
-      password: pickPassword(env.RBAC_DEVELOPER_PASSWORD)
-    },
-    {
-      role: Role.VIEWER,
-      email: pickEmail(env.RBAC_VIEWER_EMAIL, undefined, 'viewer'),
-      password: pickPassword(env.RBAC_VIEWER_PASSWORD)
-    }
-  ]
-}
+const SEED_USERS: { role: Role; localPart: string }[] = [
+  { role: Role.SUPER_ADMIN, localPart: 'superadmin' },
+  { role: Role.ADMIN, localPart: 'admin' },
+  { role: 'DEVELOPER' as Role, localPart: 'developer' },
+  { role: Role.VIEWER, localPart: 'viewer' }
+]
 
 export async function seedRbacUsers(prisma: PrismaClient) {
-  const users = getSeedUsers()
+  const passwordHash = await bcrypt.hash(SEED_PASSWORD, 12)
 
-  for (const user of users) {
-    const passwordHash = await bcrypt.hash(user.password, 12)
+  for (const { role, localPart } of SEED_USERS) {
+    const email = `${localPart}@${SEED_EMAIL_DOMAIN}`.toLowerCase()
 
     await prisma.user.upsert({
-      where: { email: user.email },
+      where: { email },
       update: {
-        role: user.role,
+        role,
         passwordHash
       },
       create: {
-        email: user.email,
+        email,
         passwordHash,
-        role: user.role
+        role
       }
     })
   }
 
+  const summary = SEED_USERS.map(({ role, localPart }) => `${role}:${localPart}@${SEED_EMAIL_DOMAIN}`).join(', ')
   // eslint-disable-next-line no-console -- seed feedback
-  console.log(
-    `Seeded RBAC users: ${users.map((user) => `${user.role}:${user.email}`).join(', ')}`
-  )
+  console.log(`Seeded RBAC users: ${summary} — password is SEED_PASSWORD in prisma/seeds/rbac.seed.ts`)
 }

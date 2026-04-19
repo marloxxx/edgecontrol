@@ -310,7 +310,7 @@ print_credentials_summary() {
   local v
   printf '\n'
   printf '%s\n' "═══════════════════════════════════════════════════════════════════"
-  printf '%s\n' "  Edgecontrol — panel/API on host ports; Traefik for managed routes (see README & compose)"
+  printf '%s\n' "  Edgecontrol — panel/API on host ports; Traefik for panel, MinIO, and managed routes (see README & compose)"
   printf '%s\n' "  Credentials from: $f"
   printf '%s\n' "  Treat as secret. Do not commit .env or paste into public channels."
   printf '%s\n' "═══════════════════════════════════════════════════════════════════"
@@ -336,7 +336,7 @@ print_credentials_summary() {
     [[ -n "$v" ]] && printf '  %-30s %s\n' "$key" "$v"
   done
   printf '  %-30s %s\n' "→ if unset" "Compose uses 127.0.0.1:3001 (API) and :8080 (panel)"
-  printf '\n%s\n' "Traefik / TLS (file provider — API writes dynamic.yml; Let’s Encrypt for managed routes)"
+  printf '\n%s\n' "Traefik / TLS (file + Docker labels — panel & MinIO; API writes dynamic.yml; Let’s Encrypt)"
   v="$(read_env_var ACME_EMAIL "$f")"
   printf '  %-30s %s\n' "ACME_EMAIL" "${v:-"(empty)"}"
   v="$(read_env_var BASE_DOMAIN "$f")"

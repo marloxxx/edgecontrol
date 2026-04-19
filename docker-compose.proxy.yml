@@ -5,7 +5,7 @@
 # .env:     TRAEFIK_DOCKER_NETWORK=proxy
 #
 # Up:      docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
-# Recreate: docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d --force-recreate traefik web api minio
+# Recreate: docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d --force-recreate traefik web minio
 
 networks:
   proxy:
@@ -13,10 +13,6 @@ networks:
 
 services:
   traefik:
-    networks:
-      - proxy
-
-  api:
     networks:
       - proxy
 

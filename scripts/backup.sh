@@ -19,7 +19,8 @@ MINIO_VOLUME="${MINIO_BACKUP_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_minio_data}"
 echo "Creating database backup..."
 pg_dump "${DATABASE_URL}" > "${BACKUP_ABS}/db-${TIMESTAMP}.sql"
 
-echo "Copying Traefik dynamic config..."
+echo "Copying Traefik configs..."
+cp ./docker/traefik/traefik.yml "${BACKUP_ABS}/traefik-static-${TIMESTAMP}.yml"
 cp ./docker/traefik/dynamic.yml "${BACKUP_ABS}/dynamic-${TIMESTAMP}.yml"
 
 if docker volume inspect "${MINIO_VOLUME}" &>/dev/null; then

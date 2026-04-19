@@ -70,7 +70,7 @@ model Service {
   type                  String    @default("api")
   enabled               Boolean   @default(true)
   weight                Int       @default(100)
-  healthPath            String    @default("/api/health")
+  healthPath            String    @default("/")
   rateLimitAvg          Int?
   rateLimitBurst        Int?
   circuitBreakerEnabled Boolean   @default(false)

@@ -133,8 +133,11 @@ export class TraefikService {
         middlewareNames.push(name)
       }
 
+      // Never send ACME HTTP-01 paths to the upstream (answered on :80 by Traefik A). Prefix uses a trailing `/`
+      // so the rule matches the real token URLs; `Path()` covers the rare bare path without a token segment.
+      const acmeHttp01Exclusion = `!PathPrefix(\`/.well-known/acme-challenge/\`) && !Path(\`/.well-known/acme-challenge\`)`
       const router: Record<string, unknown> = {
-        rule: `Host(\`${route.domain}\`)`,
+        rule: `Host(\`${route.domain}\`) && ${acmeHttp01Exclusion}`,
         service: key,
         entryPoints: ['websecure'],
         tls: { certResolver: 'letsencrypt' }
@@ -144,10 +147,10 @@ export class TraefikService {
       }
       routers[key] = router
 
-      // Plain HTTP → HTTPS without breaking Let's Encrypt HTTP-01: never redirect `/.well-known/acme-challenge/`
+      // Plain HTTP → HTTPS without breaking Let's Encrypt HTTP-01: never redirect `/.well-known/acme-challenge/…`
       // on :80—Traefik A must answer the challenge locally (do not forward that path to a downstream Traefik).
       routers[`${key}-http`] = {
-        rule: `Host(\`${route.domain}\`) && !PathPrefix(\`/.well-known/acme-challenge\`)`,
+        rule: `Host(\`${route.domain}\`) && ${acmeHttp01Exclusion}`,
         entryPoints: ['web'],
         middlewares: ['redirect-https'],
         service: 'noop@internal'

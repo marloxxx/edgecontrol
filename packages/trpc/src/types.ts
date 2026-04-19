@@ -18,7 +18,7 @@ export const serviceSchema = z.object({
   type: serviceTypeSchema.default('api'),
   enabled: z.boolean(),
   weight: z.number().int().min(0).max(100),
-  healthPath: z.string().default('/api/health'),
+  healthPath: z.string().default('/'),
   rateLimitAvg: z.number().int().nullable(),
   rateLimitBurst: z.number().int().nullable(),
   circuitBreakerEnabled: z.boolean(),

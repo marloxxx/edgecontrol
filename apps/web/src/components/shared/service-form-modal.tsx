@@ -103,7 +103,7 @@ const defaults: FormValues = {
   type: 'api',
   enabled: true,
   weight: 100,
-  healthPath: '/api/health',
+    healthPath: '/',
   rateLimitAvg: null,
   rateLimitBurst: null,
   circuitBreakerEnabled: false,
@@ -296,6 +296,11 @@ export function ServiceFormModal({ open, onOpenChange, onSuccess, editServiceId 
             <div className="space-y-1.5">
               <Label htmlFor="svc-health">Health path</Label>
               <Input id="svc-health" {...form.register('healthPath')} className="h-9 font-mono text-sm" />
+              <p className="text-xs text-muted-foreground">
+                Traefik probe and worker checks; <span className="font-mono">/</span> is safest when the upstream only
+                serves that (e.g. behind another Traefik). Use <span className="font-mono">/api/health</span> if your
+                app exposes it.
+              </p>
             </div>
 
             <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">

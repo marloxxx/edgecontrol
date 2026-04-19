@@ -7,21 +7,21 @@ http:
         permanent: true
   routers:
     edgecontrol-panel-http:
-      rule: Host(`__PANEL_HOST__`) && !PathPrefix(`/.well-known/acme-challenge`)
+      rule: Host(`__PANEL_HOST__`) && !PathPrefix(`/.well-known/acme-challenge/`) && !Path(`/.well-known/acme-challenge`)
       entryPoints:
         - web
       middlewares:
         - redirect-https
       service: noop@internal
     edgecontrol-minio-s3-http:
-      rule: Host(`__MINIO_API_HOST__`) && !PathPrefix(`/.well-known/acme-challenge`)
+      rule: Host(`__MINIO_API_HOST__`) && !PathPrefix(`/.well-known/acme-challenge/`) && !Path(`/.well-known/acme-challenge`)
       entryPoints:
         - web
       middlewares:
         - redirect-https
       service: noop@internal
     edgecontrol-minio-console-http:
-      rule: Host(`__MINIO_CONSOLE_HOST__`) && !PathPrefix(`/.well-known/acme-challenge`)
+      rule: Host(`__MINIO_CONSOLE_HOST__`) && !PathPrefix(`/.well-known/acme-challenge/`) && !Path(`/.well-known/acme-challenge`)
       entryPoints:
         - web
       middlewares:

@@ -22,6 +22,8 @@ providers:
     network: ${DOCKER_INTERNAL_NETWORK}
 
 entryPoints:
+  # HTTP-01 uses this entrypoint. Do not set `allowACMEByPass: true` here unless you deliberately override
+  # challenge handling—otherwise internal ACME keeps MaxInt priority and wins over other :80 routers.
   web:
     address: ":80"
   websecure:

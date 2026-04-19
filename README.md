@@ -149,7 +149,7 @@ The Compose file runs the **edge**, **app**, and **observability** roles on one 
 | Grafana → Prometheus | `http://prometheus:9090` in provisioning. | Same hostname if both run in one observability stack; otherwise use the private Prometheus URL. |
 | Host ports **9090** / **3010** | Published for local access; convenient for laptops. | Prefer binding to a **private interface**, removing public mappings, or firewall rules so Prometheus and Grafana are not exposed on the internet. |
 
-Traefik load balancer health checks and the worker use **`/api/health`** (see `healthPath` on services). **`01-managed.yml`** is created only when the API has at least one managed route (it is **not** committed; an empty **`{}`** file would break Traefik’s merge with **`00-static.yml`**).
+Traefik load balancer health checks and the worker use each service’s **`healthPath`** (default **`/`** for broad reachability; set e.g. **`/api/health`** when your app exposes that). **`01-managed.yml`** is created only when the API has at least one managed route (it is **not** committed; an empty **`{}`** file would break Traefik’s merge with **`00-static.yml`**).
 
 ### Metrics and Traefik
 

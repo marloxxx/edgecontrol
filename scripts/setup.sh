@@ -93,6 +93,7 @@ try_install_docker() {
   esac
 }
 
+# Only updates keys that already exist — keeps .env aligned with .env.example (no stray appended variables).
 replace_env_line() {
   local key="$1"
   local value="$2"
@@ -103,8 +104,6 @@ replace_env_line() {
     else
       sed -i "s@^${key}=.*@${key}=${value}@" "$file"
     fi
-  else
-    printf '%s=%s\n' "$key" "$value" >>"$file"
   fi
 }
 
@@ -114,17 +113,12 @@ apply_generated_secrets() {
     warn "openssl not found — cannot generate secrets. Install OpenSSL or set values in $f manually."
     return 1
   fi
-  local jwt dbpw wh seedpw minio_pw base
+  local jwt dbpw minio_pw
   jwt=$(openssl rand -hex 32)
   dbpw=$(openssl rand -hex 24)
-  wh=$(openssl rand -hex 32)
-  seedpw=$(openssl rand -hex 16)
   minio_pw=$(openssl rand -hex 24)
   replace_env_line JWT_SECRET "$jwt" "$f"
   replace_env_line DB_PASSWORD "$dbpw" "$f"
-  replace_env_line WEBHOOK_ALERT_SECRET "$wh" "$f"
-  replace_env_line RBAC_SEED_PASSWORD "$seedpw" "$f"
-  replace_env_line ADMIN_PASSWORD "$seedpw" "$f"
   replace_env_line DATABASE_URL "postgresql://admin:${dbpw}@db:5432/edgecontrol" "$f"
   replace_env_line REDIS_URL "redis://redis:6379" "$f"
   replace_env_line GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)" "$f"
@@ -134,8 +128,8 @@ apply_generated_secrets() {
 }
 
 # Optional host hints (export when running setup.sh):
-#   EDGE_BASE_DOMAIN — if set and BASE_DOMAIN is still example.com, replace BASE_DOMAIN (VPS FQDN).
-# Derives ACME_EMAIL from BASE_DOMAIN when the file still has the .env.example placeholder.
+#   EDGE_BASE_DOMAIN — if set and BASE_DOMAIN is still example.com, replace BASE_DOMAIN (non-interactive).
+# Derives ACME_EMAIL from BASE_DOMAIN when the value is empty or still the .env.example placeholder.
 patch_derived_env_keys() {
   local f="$1"
   local changed=0 bd acme ae
@@ -155,16 +149,49 @@ patch_derived_env_keys() {
     changed=1
   fi
 
-  if [[ -n "$bd" ]]; then
-    ae="$(read_env_var ADMIN_EMAIL "$f")"
-    if [[ -z "$ae" ]]; then
-      replace_env_line ADMIN_EMAIL "admin@${bd}" "$f"
-      changed=1
-    fi
-  fi
-
   [[ "$changed" -eq 1 ]] && return 0
   return 1
+}
+
+# After copying .env.example → .env: one prompt for the operator's real FQDN (non-destructive if left blank).
+prompt_user_base_domain_first_install() {
+  local f="$1"
+  local bd input
+  bd="$(read_env_var BASE_DOMAIN "$f")"
+  [[ "$bd" == "example.com" ]] || return 0
+
+  if [[ -n "${EDGE_BASE_DOMAIN:-}" ]]; then
+    replace_env_line BASE_DOMAIN "$EDGE_BASE_DOMAIN" "$f"
+    log "Set BASE_DOMAIN from EDGE_BASE_DOMAIN."
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    log "BASE_DOMAIN is still example.com (non-interactive shell). Set EDGE_BASE_DOMAIN before re-running, or edit $f."
+    return 0
+  fi
+  printf '\n' >&2
+  log "First install: type the public hostname for this stack (saved as BASE_DOMAIN in .env)."
+  printf '      Press Enter to keep example.com for a local-only machine.\n' >&2
+  read -r -p "      Domain: " input || true
+  input="${input//$'\r'/}"
+  input="${input#"${input%%[![:space:]]*}"}"
+  input="${input%"${input##*[![:space:]]}"}"
+  if [[ -n "$input" ]]; then
+    replace_env_line BASE_DOMAIN "$input" "$f"
+    log "Set BASE_DOMAIN to $input."
+  fi
+}
+
+# Keep TRAEFIK_DYNAMIC_CONFIG_PATH in line with .env.example (older checkouts used dynamic.yml).
+sync_traefik_env_with_example() {
+  local f="$1"
+  [[ -f "$f" ]] || return 0
+  local v
+  v="$(read_env_var TRAEFIK_DYNAMIC_CONFIG_PATH "$f")"
+  if [[ -z "$v" || "$v" == "/traefik-config/dynamic.yml" ]]; then
+    replace_env_line TRAEFIK_DYNAMIC_CONFIG_PATH "/traefik-config/dynamic.d/01-managed.yml" "$f"
+    log "Updated TRAEFIK_DYNAMIC_CONFIG_PATH to /traefik-config/dynamic.d/01-managed.yml (matches .env.example)."
+  fi
 }
 
 # Matches .env.example placeholder — treat as "must replace".
@@ -269,6 +296,7 @@ ensure_env_for_stack() {
     fi
     cp "$ENV_EXAMPLE" "$ENV_FILE"
     log "Created $ENV_FILE from .env.example."
+    prompt_user_base_domain_first_install "$ENV_FILE"
     if [[ "${GENERATE_SECRETS:-1}" == "1" ]]; then
       apply_generated_secrets "$ENV_FILE" || die "openssl is required to generate secrets (install openssl) or set secrets in $ENV_FILE manually."
       log "Generated secrets in $ENV_FILE (JWT, DB, MinIO, Grafana, seed passwords; REDIS_URL set for internal compose)."
@@ -284,6 +312,9 @@ ensure_env_for_stack() {
   fi
 
   [[ -f "$ENV_FILE" ]] || return 1
+
+  sync_traefik_env_with_example "$ENV_FILE"
+  ensure_traefik_static_rendered
 
   if [[ "$mode" == "strict" ]]; then
     local dbchk jwchk
@@ -525,7 +556,6 @@ cmd_compose() {
   ensure_env_for_stack strict
   warn_letsencrypt_placeholder_domain
   ensure_public_network
-  ensure_traefik_static_rendered
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build "$@")
   echo "Stack started. See docker-compose.yml; Traefik file routes in docker/traefik/dynamic.d/."
 }
@@ -578,8 +608,6 @@ cmd_full() {
   ensure_public_network
   echo "=== Edgecontrol full deploy (Docker — $ROOT) ==="
 
-  echo ">>> Rendering Traefik static routes from .env..."
-  ensure_traefik_static_rendered
   echo ">>> Building images and starting containers..."
   (cd "$ROOT" && docker compose -f "$COMPOSE_FILE" --env-file .env up -d --build)
 
@@ -604,9 +632,10 @@ Bootstrap (no arguments, or explicit \`bootstrap\`):
     GENERATE_SECRETS=1: full|compose|bootstrap create .env from .env.example if missing, then openssl-fill
       weak or empty secrets (JWT under 32 chars, empty DB password, ChangeMe* defaults, etc.) without rotating
       already-strong values. Set GENERATE_SECRETS=0 to manage .env entirely by hand.
-    EDGE_BASE_DOMAIN (optional): export before full|compose|bootstrap — if BASE_DOMAIN is still example.com,
-      replace it with this value; ACME_EMAIL is set to admin@<BASE_DOMAIN> when it is empty or admin@domain.com.
-    Most .env.example fields are either openssl-generated, sensible defaults from the file, or derived as above.
+    EDGE_BASE_DOMAIN (optional): non-interactive installs — if BASE_DOMAIN is still example.com in a fresh .env,
+      set it from this value. Interactive first-time setup asks for the domain instead when stdin is a TTY.
+      ACME_EMAIL becomes admin@<BASE_DOMAIN> when it is still empty or admin@domain.com (see patch_derived_env_keys).
+    Secret generation only edits variables that already exist in .env (copied from .env.example); nothing extra is appended.
     Not auto-filled (external / must be real): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID. Seed email addresses stay
       as in .env unless you edit them (they are not secrets).
     INSTALL_DOCKER also applies to deploy: if the docker CLI is missing, try install (macOS: Homebrew cask; Linux: get.docker.com) before full|compose|db|seed|reset (Docker path).

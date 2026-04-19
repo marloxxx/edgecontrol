@@ -49,7 +49,7 @@ On first run `setup.sh` (or **`setup.sh full` / `compose`**) can:
 - Optional: `export EDGE_BASE_DOMAIN=your.panel.host` before `full` / `compose` / `bootstrap` to replace `BASE_DOMAIN=example.com`; **ACME_EMAIL** is then set to `admin@<BASE_DOMAIN>` when it is still the example `admin@domain.com`
 - **Telegram** tokens are never generated (they must come from BotFather). **RBAC seed emails** default to **`<role>@<BASE_DOMAIN>`** (for example **`superadmin@example.com`**) unless **`RBAC_*_EMAIL`** is set; **`ADMIN_EMAIL`** defaults from **`BASE_DOMAIN`** when empty (see **`packages/db/prisma/seeds/rbac.seed.ts`**)
 - Create the external Docker network **`public`** (required by `docker-compose.yml`; `full` / `compose` do this automatically)
-- Render **`docker/traefik/dynamic.d/00-static.yml`** from **`.env`** (panel + MinIO hosts) before **`docker compose up`** — **`./scripts/render-traefik-static.sh`**, also run automatically from **`setup.sh full`** / **`compose`**
+- Sync **`TRAEFIK_DYNAMIC_CONFIG_PATH`** with **`.env.example`** when it is missing or still **`/traefik-config/dynamic.yml`**, and render **`docker/traefik/dynamic.d/00-static.yml`** from **`.env`** — happens on **`setup.sh`** (bootstrap / **`full`** / **`compose`**); you can still run **`./scripts/render-traefik-static.sh`** by hand after editing hostnames
 
 **Never commit `.env`.** Only `.env.example` is tracked.
 

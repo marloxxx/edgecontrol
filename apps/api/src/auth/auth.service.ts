@@ -63,11 +63,12 @@ export class AuthService {
     }
   }
 
-  async me(ctx: { user?: { id: string; email: string; role: string } }) {
-    if (!ctx.user) return null
+  async me(ctx: { user?: { id: string; email: string; role: string } } | undefined) {
+    const user = ctx?.user
+    if (!user) return null
     return {
-      ...ctx.user,
-      role: normalizeRole(ctx.user.role)
+      ...user,
+      role: normalizeRole(user.role)
     }
   }
 

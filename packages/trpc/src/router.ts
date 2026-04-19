@@ -67,13 +67,14 @@ export interface AppRouterDeps {
 const t = initTRPC.context<RouterContext>().create()
 
 const enforceAuth = t.middleware(({ ctx, next }) => {
-  if (!ctx.user) {
+  const user = ctx?.user
+  if (!user) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' })
   }
   return next({
     ctx: {
       ...ctx,
-      user: ctx.user
+      user
     }
   })
 })
@@ -82,7 +83,11 @@ const publicProcedure = t.procedure
 const protectedProcedure = t.procedure.use(enforceAuth)
 const permissionProcedure = (permission: Permission) =>
   protectedProcedure.use(({ ctx, next }) => {
-    if (!hasPermission(ctx.user.role, permission)) {
+    const actor = ctx?.user
+    if (!actor) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' })
+    }
+    if (!hasPermission(actor.role, permission)) {
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: `Required permission: ${permission}`

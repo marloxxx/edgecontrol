@@ -136,14 +136,14 @@ export class TraefikService {
       }
 
       // Traefik v3.6: `web` redirect routers use `priority: 1` so the internal HTTP-01 handler wins when using ACME
-      // elsewhere. Managed `websecure` routes do **not** set `tls.certResolver`: TLS uses `tls.stores.default`
+      // elsewhere. Omit `priority` on `websecure`: internal ACME (e.g. TLS-ALPN) uses ~23; `priority: 1` loses → 404.
+      // Managed `websecure` routes do **not** set `tls.certResolver`: TLS uses `tls.stores.default`
       // (`docker/traefik/ssl/cert.pem` + `key.pem`), e.g. a wildcard — avoids Let’s Encrypt **429** when many
       // subdomains share one commercial cert. Re-enable per-route ACME only if you add an explicit product toggle.
       const router: Record<string, unknown> = {
         rule: `Host(\`${route.domain}\`)`,
         service: key,
-        entryPoints: ['websecure'],
-        priority: 1
+        entryPoints: ['websecure']
       }
       if (middlewareNames.length > 0) {
         router.middlewares = middlewareNames

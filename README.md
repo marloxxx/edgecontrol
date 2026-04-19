@@ -149,7 +149,7 @@ The root **`docker-compose.yml`** runs Traefik, API, worker, web, Postgres, Redi
 
 **`01-managed.yml` is generated:** the API overwrites **`docker/traefik/dynamic.d/01-managed.yml`** on **Regenerate** and on managed-service changes — do not rely on hand-edits there; change data in the UI or adjust **`TraefikService.buildConfig()`** in the repo.
 
-**Traefik v3.6 + HTTP-01:** Traefik answers **`/.well-known/acme-challenge/*`** on **`web`** via its **internal** handler when something still requests ACME (e.g. resolver registered from Compose). Do **not** add a manual **`PathPrefix`** router to **`noop@internal`**. **`00-static.yml`** and **`01-managed.yml`** use plain **`Host()`** and **`priority: 1`** on **`web`** redirect routers. Re-run **`./scripts/render-traefik-static.sh`**, **Regenerate** managed routes, then recreate **`traefik`** after pulling.
+**Traefik v3.6 + HTTP-01:** Traefik answers **`/.well-known/acme-challenge/*`** on **`web`** via its **internal** handler when something still requests ACME (e.g. resolver registered from Compose). Do **not** add a manual **`PathPrefix`** router to **`noop@internal`**. **`00-static.yml`** and **`01-managed.yml`** use plain **`Host()`** with **`priority: 1`** only on **`web`** redirect routers (not on **`websecure`**, where internal ACME uses ~**23** and a lower priority can yield Traefik’s **404**). Re-run **`./scripts/render-traefik-static.sh`**, **Regenerate** managed routes, then recreate **`traefik`** after pulling.
 
 ### Host checkout path (Linux)
 

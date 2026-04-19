@@ -1,6 +1,7 @@
 # Rendered to 00-static.yml by scripts/render-traefik-static.sh (reads .env). Do not edit this template’s Host() lines by hand — use .env + re-run the script.
 # Panel + MinIO HTTPS use the default TLS store (dynamic.d/02-default-tls.yml → docker/traefik/ssl/cert.pem + key.pem), not ACME.
 # `priority: 1` on :80 redirect routers keeps Traefik’s internal HTTP-01 handler ahead when other stacks still use ACME.
+# Do **not** set `priority: 1` on `websecure` routers: internal ACME (e.g. TLS-ALPN) uses ~23; a lower value can lose and yield Traefik’s 404.
 http:
   middlewares:
     redirect-https:
@@ -36,19 +37,16 @@ http:
       rule: Host(`__PANEL_HOST__`)
       entryPoints:
         - websecure
-      priority: 1
       service: edgecontrol-panel-svc
     edgecontrol-minio-s3:
       rule: Host(`__MINIO_API_HOST__`)
       entryPoints:
         - websecure
-      priority: 1
       service: edgecontrol-minio-s3-svc
     edgecontrol-minio-console:
       rule: Host(`__MINIO_CONSOLE_HOST__`)
       entryPoints:
         - websecure
-      priority: 1
       service: edgecontrol-minio-console-svc
   services:
     edgecontrol-panel-svc:

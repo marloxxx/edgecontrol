@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { isIP } from 'node:net'
 import path from 'node:path'
 
 import { Injectable } from '@nestjs/common'
@@ -101,6 +102,7 @@ export class TraefikService {
     const middlewares: Record<string, unknown> = {}
     const routers: Record<string, unknown> = {}
     const services: Record<string, unknown> = {}
+    const serversTransports: Record<string, unknown> = {}
 
     for (const route of routes) {
       const key = route.domain.replace(/\./g, '-').replace(/[^a-zA-Z0-9-]/g, '')
@@ -150,26 +152,59 @@ export class TraefikService {
         service: 'noop@internal'
       }
 
-      services[key] = {
-        loadBalancer: {
-          servers: [
-            {
-              url: `${route.protocol}://${route.targetHost}:${route.targetPort}`,
-              weight: route.weight
-            }
-          ],
-          healthCheck: {
-            path: route.healthPath,
-            interval: '10s',
-            timeout: '3s'
-          }
+      // Private hop (e.g. Traefik on VPS A → app on VPS B by RFC1918 IP): prefer `http://IP:port` in the service
+      // record—TLS terminates at Traefik for users; internal HTTP is normal on a trusted network. If you still
+      // dial `https://` to an IP, we attach SNI below so verification can match the public hostname on the cert.
+
+      // HTTPS to a literal IP: verify / SNI against the public hostname (subdomain), not the IP.
+      const outboundTlsUsesPublicName =
+        route.protocol === 'https' && isIP(route.targetHost) !== 0
+      const outboundTransportName = `${key}-outbound-tls`
+      if (outboundTlsUsesPublicName) {
+        serversTransports[outboundTransportName] = {
+          serverName: route.domain
         }
       }
+
+      // Health uses the public hostname for vhost routing. Cleartext HTTP override only when origin URL is https
+      // (common split: HTTPS :443 for app traffic, HTTP :80 for /health); internal-only http:// origins need no override.
+      const healthCheck: Record<string, unknown> = {
+        path: route.healthPath,
+        interval: '10s',
+        timeout: '3s',
+        hostname: route.domain
+      }
+      if (route.protocol === 'https') {
+        healthCheck.scheme = 'http'
+        if (route.targetPort === 443) {
+          healthCheck.port = 80
+        }
+      }
+
+      const loadBalancer: Record<string, unknown> = {
+        // Forward the browser's Host (the public subdomain) to the origin, not the dial host from `servers[].url`.
+        passHostHeader: true,
+        servers: [
+          {
+            url: `${route.protocol}://${route.targetHost}:${route.targetPort}`,
+            weight: route.weight
+          }
+        ],
+        healthCheck
+      }
+      if (outboundTlsUsesPublicName) {
+        loadBalancer.serversTransport = outboundTransportName
+      }
+
+      services[key] = { loadBalancer }
     }
 
     const http: Record<string, unknown> = { routers, services }
     if (Object.keys(middlewares).length > 0) {
       http.middlewares = middlewares
+    }
+    if (Object.keys(serversTransports).length > 0) {
+      http.serversTransports = serversTransports
     }
 
     return { http }

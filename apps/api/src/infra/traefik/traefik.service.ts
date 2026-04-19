@@ -144,7 +144,8 @@ export class TraefikService {
       }
       routers[key] = router
 
-      // Plain HTTP → HTTPS without breaking Let's Encrypt HTTP-01 (middleware `redirect-https` in 00-static.yml).
+      // Plain HTTP → HTTPS without breaking Let's Encrypt HTTP-01: never redirect `/.well-known/acme-challenge/`
+      // on :80—Traefik A must answer the challenge locally (do not forward that path to a downstream Traefik).
       routers[`${key}-http`] = {
         rule: `Host(\`${route.domain}\`) && !PathPrefix(\`/.well-known/acme-challenge\`)`,
         entryPoints: ['web'],
@@ -166,23 +167,23 @@ export class TraefikService {
         }
       }
 
-      // Health uses the public hostname for vhost routing. Cleartext HTTP override only when origin URL is https
-      // (common split: HTTPS :443 for app traffic, HTTP :80 for /health); internal-only http:// origins need no override.
+      // Health probes dial `servers[].url` but do not inherit `passHostHeader`; `hostname` forces `Host: <public
+      // subdomain>` so a downstream Traefik (or any Host-based router) matches `Host(\`api…\`)` instead of the IP.
+      // Always `scheme: http` on the probe so checks stay cleartext unless you override port for an HTTPS origin.
+      // `followRedirects: false` avoids following a 301/302 to https://<IP>/… (TLS to IP breaks the check even when
+      // `servers[].url` is plain http://…:8080).
       const healthCheck: Record<string, unknown> = {
         path: route.healthPath,
         interval: '10s',
         timeout: '3s',
-        hostname: route.domain
-      }
-      if (route.protocol === 'https') {
-        healthCheck.scheme = 'http'
-        if (route.targetPort === 443) {
-          healthCheck.port = 80
-        }
+        hostname: route.domain,
+        scheme: 'http',
+        followRedirects: false,
+        ...(route.protocol === 'https' && route.targetPort === 443 ? { port: 80 } : {})
       }
 
       const loadBalancer: Record<string, unknown> = {
-        // Forward the browser's Host (the public subdomain) to the origin, not the dial host from `servers[].url`.
+        // Preserve the client Host (public subdomain) toward the origin—required when the next hop routes on Host().
         passHostHeader: true,
         servers: [
           {

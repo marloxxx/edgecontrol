@@ -238,7 +238,7 @@ export class TraefikService {
     const normalized = this.normalizeTraefikFilePayload(config)
 
     // Do not write `{}` to disk: Traefik merges every `*.yml` in `dynamic.d/` and a root `{}` file
-    // can wipe file-provider routes (MinIO in 00-static.yml) → 404.
+    // can wipe file-provider routes (panel + MinIO in 00-static.yml, TLS in 02-default-tls.yml) → 404.
     if (Object.keys(normalized).length === 0) {
       try {
         fs.unlinkSync(this.configPath)

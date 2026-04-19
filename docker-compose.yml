@@ -107,7 +107,6 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: edgecontrol-web
     restart: unless-stopped
-    # Panel public HTTPS (if needed): add a managed service in the UI → 01-managed.yml; loopback :8080 is always available.
     ports:
       - "127.0.0.1:${PANEL_PUBLISH_PORT:-8080}:80"
     depends_on:

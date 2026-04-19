@@ -1,0 +1,11 @@
+# Traefik v3 loads user TLS material via the **file provider** (dynamic). Static `traefik.yml` TLS for this store is ignored,
+# which otherwise yields the built-in "TRAEFIK DEFAULT CERT". Paths match the Compose mount: ./docker/traefik/ssl → /etc/traefik/ssl.
+tls:
+  certificates:
+    - certFile: /etc/traefik/ssl/cert.pem
+      keyFile: /etc/traefik/ssl/key.pem
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/ssl/cert.pem
+        keyFile: /etc/traefik/ssl/key.pem

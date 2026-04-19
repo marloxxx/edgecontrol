@@ -5,6 +5,14 @@ http:
         scheme: https
         permanent: true
   routers:
+    edgecontrol-panel-http:
+      rule: Host(`edgecontrol.example.com`)
+      entryPoints:
+        - web
+      priority: 1
+      middlewares:
+        - redirect-https
+      service: noop@internal
     edgecontrol-minio-s3-http:
       rule: Host(`s3.example.com`)
       entryPoints:
@@ -21,6 +29,12 @@ http:
       middlewares:
         - redirect-https
       service: noop@internal
+    edgecontrol-panel:
+      rule: Host(`edgecontrol.example.com`)
+      entryPoints:
+        - websecure
+      priority: 1
+      service: edgecontrol-panel-svc
     edgecontrol-minio-s3:
       rule: Host(`s3.example.com`)
       entryPoints:
@@ -34,6 +48,10 @@ http:
       priority: 1
       service: edgecontrol-minio-console-svc
   services:
+    edgecontrol-panel-svc:
+      loadBalancer:
+        servers:
+          - url: http://web:80
     edgecontrol-minio-s3-svc:
       loadBalancer:
         servers:

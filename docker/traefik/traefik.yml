@@ -22,14 +22,7 @@ entryPoints:
   websecure:
     address: ":443"
 
-# Default TLS material (mount ./docker/traefik/ssl → /etc/traefik/ssl). Run scripts/ensure-traefik-ssl.sh if missing.
-# Routers with tls.certResolver still obtain Let’s Encrypt certs; this default covers fallbacks / local dev.
-tls:
-  stores:
-    default:
-      defaultCertificate:
-        certFile: /etc/traefik/ssl/cert.pem
-        keyFile: /etc/traefik/ssl/key.pem
+# Default wildcard / PEM TLS: see dynamic.d/02-default-tls.yml (file provider). Static `tls:` here is not applied the same way in Traefik v3.
 
 certificatesResolvers:
   letsencrypt:

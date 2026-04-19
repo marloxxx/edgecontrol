@@ -63,10 +63,11 @@ export class ServiceService {
       throw new NotFoundException('Service not found')
     }
 
+    const { id, ...updates } = input
     const service = await this.prisma.service.update({
-      where: { id: input.id },
+      where: { id },
       data: {
-        ...input,
+        ...updates,
         rateLimitAvg: input.rateLimitAvg ?? null,
         rateLimitBurst: input.rateLimitBurst ?? null,
         fallbackServiceId: input.fallbackServiceId ?? null,

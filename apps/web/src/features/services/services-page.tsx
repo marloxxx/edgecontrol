@@ -17,6 +17,7 @@ import type { ColumnDef, RowAction } from '@/src/components/shared'
 export function ServicesPage() {
   const { hasPermission } = useRole()
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [selectedService, setSelectedService] = useState<{ id: string; name: string } | undefined>(undefined)
   const serviceQuery = trpc.service.list.useQuery()
@@ -41,7 +42,7 @@ export function ServicesPage() {
       header: 'Name',
       cell: (service) => (
         <Link to="/services/$id" params={{ id: service.id }}>
-          <Button variant="link" className="p-0 text-secondary hover:text-secondary/80 font-semibold">
+          <Button variant="link" className="h-auto p-0 font-semibold text-primary">
             {service.name}
           </Button>
         </Link>
@@ -51,7 +52,7 @@ export function ServicesPage() {
       id: 'domain',
       header: 'Domain',
       accessor: (service) => service.domain,
-      cell: (service) => <span className="font-mono text-sm text-muted-foreground">{service.domain}</span>
+      cell: (service) => <span className="font-mono text-sm text-foreground/90">{service.domain}</span>
     },
     {
       id: 'type',
@@ -62,7 +63,11 @@ export function ServicesPage() {
     {
       id: 'target',
       header: 'Target',
-      cell: (service) => <span className="font-mono text-sm text-muted-foreground">{service.targetHost}:{service.targetPort}</span>
+      cell: (service) => (
+        <span className="font-mono text-sm text-foreground/90">
+          {service.targetHost}:{service.targetPort}
+        </span>
+      )
     },
     {
       id: 'enabled',
@@ -87,7 +92,10 @@ export function ServicesPage() {
       label: 'Edit',
       icon: <Edit className="mr-2 h-4 w-4" />,
       hidden: () => !hasPermission('edit:service'),
-      onClick: () => {}
+      onClick: (service) => {
+        setEditingServiceId(service.id)
+        setIsFormOpen(true)
+      }
     },
     {
       id: 'duplicate',
@@ -123,7 +131,14 @@ export function ServicesPage() {
         <ModuleHeader
           title="Services"
           description="Manage and monitor all your services"
-          onAdd={hasPermission('create:service') ? () => setIsFormOpen(true) : undefined}
+          onAdd={
+            hasPermission('create:service')
+              ? () => {
+                  setEditingServiceId(null)
+                  setIsFormOpen(true)
+                }
+              : undefined
+          }
           addLabel="Add Service"
         />
 
@@ -173,7 +188,11 @@ export function ServicesPage() {
 
       <ServiceFormModal
         open={isFormOpen}
-        onOpenChange={setIsFormOpen}
+        editServiceId={editingServiceId}
+        onOpenChange={(open) => {
+          setIsFormOpen(open)
+          if (!open) setEditingServiceId(null)
+        }}
         onSuccess={async () => {
           await serviceQuery.refetch()
         }}

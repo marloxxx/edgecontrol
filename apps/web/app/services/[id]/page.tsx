@@ -17,6 +17,7 @@ import { useRole } from '@/contexts/RoleContext'
 import { useParams } from '@tanstack/react-router'
 import type { ServiceStatus } from '@/lib/types'
 import { trpc } from '@/src/lib/trpc'
+import { ServiceFormModal } from '@/src/components/shared'
 
 function parseDate(value: string | Date): Date {
   return value instanceof Date ? value : new Date(value)
@@ -80,6 +81,7 @@ export default function ServiceDetail() {
   }, [auditQuery.data, service])
 
   const [secondsSinceLastCheck, setSecondsSinceLastCheck] = useState(0)
+  const [editOpen, setEditOpen] = useState(false)
   useEffect(() => {
     if (!lastChecked) return
     const tick = () => {
@@ -154,7 +156,7 @@ circuit_breaker:
           </div>
           <div className="flex gap-2">
             <PermissionGate permission="edit:service">
-              <Button variant="outline" className="border-border">
+              <Button type="button" variant="outline" className="border-border" onClick={() => setEditOpen(true)}>
                 Edit Service
               </Button>
             </PermissionGate>
@@ -169,7 +171,7 @@ circuit_breaker:
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-xs font-semibold text-muted-foreground uppercase">Public Domain</div>
-                <div className="font-mono text-lg text-secondary mt-1">{service.domain}</div>
+                <div className="font-mono text-lg text-foreground mt-1">{service.domain}</div>
               </div>
               <div>
                 <div className="text-xs font-semibold text-muted-foreground uppercase">Target</div>
@@ -187,7 +189,7 @@ circuit_breaker:
               <CardTitle className="text-sm font-medium text-muted-foreground">Observed status</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-secondary capitalize">{latestStatus.toLowerCase()}</div>
+              <div className="text-2xl font-bold text-foreground capitalize">{latestStatus.toLowerCase()}</div>
             </CardContent>
           </Card>
           <Card className="border-border bg-card">
@@ -422,6 +424,17 @@ circuit_breaker:
           </TabsContent>
         </Tabs>
       </div>
+
+      <ServiceFormModal
+        open={editOpen}
+        editServiceId={serviceId}
+        onOpenChange={setEditOpen}
+        onSuccess={async () => {
+          await serviceQuery.refetch()
+          await healthQuery.refetch()
+          await auditQuery.refetch()
+        }}
+      />
     </LayoutWithSidebar>
   )
 }

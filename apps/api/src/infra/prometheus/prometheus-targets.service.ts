@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -18,7 +18,7 @@ type FileSdGroup = {
 export class PrometheusTargetsService {
   private readonly logger = new Logger(PrometheusTargetsService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   /**
    * Rebuilds the file from the database. Safe to call on every service change.

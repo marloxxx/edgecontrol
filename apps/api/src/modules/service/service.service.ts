@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { AuditAction } from '@edgecontrol/db'
 import type { CreateServiceInput, UpdateServiceInput } from '@edgecontrol/trpc'
 
@@ -13,10 +13,10 @@ export class ServiceService {
   private readonly logger = new Logger(ServiceService.name)
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly accessControlService: AccessControlService,
-    private readonly prometheusTargets: PrometheusTargetsService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AuditService) private readonly auditService: AuditService,
+    @Inject(AccessControlService) private readonly accessControlService: AccessControlService,
+    @Inject(PrometheusTargetsService) private readonly prometheusTargets: PrometheusTargetsService
   ) {}
 
   async list(actor: AuthenticatedUser) {

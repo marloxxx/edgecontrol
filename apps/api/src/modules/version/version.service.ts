@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { AuditAction, Prisma } from '@edgecontrol/db'
 
 import { AuthenticatedUser } from '../../auth/auth.types'
@@ -11,11 +11,11 @@ import { AuditService } from '../audit/audit.service'
 @Injectable()
 export class VersionService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly traefikService: TraefikService,
-    private readonly prometheusTargets: PrometheusTargetsService,
-    private readonly auditService: AuditService,
-    private readonly accessControlService: AccessControlService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(TraefikService) private readonly traefikService: TraefikService,
+    @Inject(PrometheusTargetsService) private readonly prometheusTargets: PrometheusTargetsService,
+    @Inject(AuditService) private readonly auditService: AuditService,
+    @Inject(AccessControlService) private readonly accessControlService: AccessControlService
   ) {}
 
   async regenerate(actor: AuthenticatedUser) {

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common'
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common'
 import { AuditAction, Prisma } from '@edgecontrol/db'
 import { normalizeRole } from '@edgecontrol/trpc'
 
@@ -9,8 +9,8 @@ import { AuditService } from '../audit/audit.service'
 @Injectable()
 export class AccessControlService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly auditService: AuditService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AuditService) private readonly auditService: AuditService
   ) {}
 
   isPrivileged(user: AuthenticatedUser): boolean {

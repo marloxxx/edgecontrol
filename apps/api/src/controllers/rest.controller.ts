@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, UnauthorizedException } from '@nestjs/common'
+import { Body, Controller, Get, Headers, Inject, Post, UnauthorizedException } from '@nestjs/common'
 
 import { env } from '../config/env'
 import { AlertService } from '../modules/alert/alert.service'
@@ -13,8 +13,8 @@ export class RestController {
   }
 
   constructor(
-    private readonly alertService: AlertService,
-    private readonly versionService: VersionService
+    @Inject(AlertService) private readonly alertService: AlertService,
+    @Inject(VersionService) private readonly versionService: VersionService
   ) {}
 
   @Get('/health')

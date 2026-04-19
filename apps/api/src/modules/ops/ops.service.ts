@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 
 import { AuthenticatedUser } from '../../auth/auth.types'
 import { ServiceService } from '../service/service.service'
@@ -7,8 +7,8 @@ import { VersionService } from '../version/version.service'
 @Injectable()
 export class OpsService {
   constructor(
-    private readonly serviceService: ServiceService,
-    private readonly versionService: VersionService
+    @Inject(ServiceService) private readonly serviceService: ServiceService,
+    @Inject(VersionService) private readonly versionService: VersionService
   ) {}
 
   async setCircuitBreaker(id: string, status: 'OPEN' | 'CLOSED', actor: AuthenticatedUser) {

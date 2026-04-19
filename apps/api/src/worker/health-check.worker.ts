@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { AlertSeverity, ServiceStatus } from '@edgecontrol/db'
 import { Job, Queue, Worker } from 'bullmq'
 import IORedis from 'ioredis'
@@ -27,10 +27,10 @@ export class HealthCheckWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly healthService: HealthService,
-    private readonly alertService: AlertService,
-    private readonly telegramService: TelegramService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(HealthService) private readonly healthService: HealthService,
+    @Inject(AlertService) private readonly alertService: AlertService,
+    @Inject(TelegramService) private readonly telegramService: TelegramService
   ) {}
 
   async onModuleInit() {

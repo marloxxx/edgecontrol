@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { ServiceStatus } from '@edgecontrol/db'
 
 import { AuthenticatedUser } from '../../auth/auth.types'
@@ -9,8 +9,8 @@ import { AccessControlService } from '../access/access-control.service'
 @Injectable()
 export class HealthService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly accessControlService: AccessControlService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AccessControlService) private readonly accessControlService: AccessControlService
   ) {}
 
   async testConnection(serviceId: string, actor: AuthenticatedUser) {

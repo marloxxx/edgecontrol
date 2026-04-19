@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { normalizeRole } from '@edgecontrol/trpc'
@@ -20,7 +20,7 @@ interface AccessTokenPayload {
 export class AuthService {
   private readonly loginAttemptTracker = new Map<string, number[]>()
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async login(email: string, password: string) {
     this.enforceRateLimit(email)

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import type { CreateNodeInput } from '@edgecontrol/trpc'
 
 import { AuthenticatedUser } from '../../auth/auth.types'
@@ -10,7 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service'
  */
 @Injectable()
 export class NodeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async list(_actor: AuthenticatedUser) {
     return this.prisma.node.findMany({

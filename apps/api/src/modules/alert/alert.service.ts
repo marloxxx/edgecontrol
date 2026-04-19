@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { AlertSeverity, AlertStatus } from '@edgecontrol/db'
 
 import { AuthenticatedUser } from '../../auth/auth.types'
@@ -8,8 +8,8 @@ import { AccessControlService } from '../access/access-control.service'
 @Injectable()
 export class AlertService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly accessControlService: AccessControlService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AccessControlService) private readonly accessControlService: AccessControlService
   ) {}
 
   async list(status: string | undefined, actor: AuthenticatedUser) {

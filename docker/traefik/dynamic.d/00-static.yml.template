@@ -1,5 +1,6 @@
 # Rendered to 00-static.yml by scripts/render-traefik-static.sh (reads .env). Do not edit this template’s Host() lines by hand — use .env + re-run the script.
 # Panel is not routed here — use 01-managed.yml (managed service) or loopback / published web port. MinIO only in this file.
+# MinIO HTTPS has no `certResolver`: Traefik uses `tls.stores.default` (docker/traefik/ssl/cert.pem + key.pem), e.g. a commercial wildcard — avoids Let’s Encrypt **429** rate limits on s3.* / minio.*.
 # `priority: 1` keeps MinIO `Host()` routers below Traefik’s internal HTTP-01 handler on `web` (higher number wins).
 http:
   middlewares:
@@ -30,16 +31,12 @@ http:
         - websecure
       priority: 1
       service: edgecontrol-minio-s3-svc
-      tls:
-        certResolver: letsencrypt
     edgecontrol-minio-console:
       rule: Host(`__MINIO_CONSOLE_HOST__`)
       entryPoints:
         - websecure
       priority: 1
       service: edgecontrol-minio-console-svc
-      tls:
-        certResolver: letsencrypt
   services:
     edgecontrol-minio-s3-svc:
       loadBalancer:

@@ -27,16 +27,12 @@ http:
         - websecure
       priority: 1
       service: edgecontrol-minio-s3-svc
-      tls:
-        certResolver: letsencrypt
     edgecontrol-minio-console:
       rule: Host(`minio.example.com`)
       entryPoints:
         - websecure
       priority: 1
       service: edgecontrol-minio-console-svc
-      tls:
-        certResolver: letsencrypt
   services:
     edgecontrol-minio-s3-svc:
       loadBalancer:

@@ -354,7 +354,7 @@ print_credentials_summary() {
     [[ -n "$v" ]] && printf '  %-30s %s\n' "$key" "$v"
   done
   printf '  %-30s %s\n' "→ if unset" "Compose uses 127.0.0.1:3001 (API) and :8080 (panel)"
-  printf '\n%s\n' "Traefik / TLS (file: dynamic.d/00-static.yml + 01-managed.yml; Docker provider optional; Let’s Encrypt)"
+  printf '\n%s\n' "Traefik / TLS (file: dynamic.d/00-static.yml + optional 01-managed.yml; Docker provider optional; Let’s Encrypt)"
   v="$(read_env_var ACME_EMAIL "$f")"
   printf '  %-30s %s\n' "ACME_EMAIL" "${v:-"(empty)"}"
   v="$(read_env_var BASE_DOMAIN "$f")"

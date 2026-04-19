@@ -185,6 +185,19 @@ export class TraefikService {
     fs.mkdirSync(dir, { recursive: true })
 
     const normalized = this.normalizeTraefikFilePayload(config)
+
+    // Do not write `{}` to disk: Traefik merges every `*.yml` in `dynamic.d/` and a root `{}` file
+    // can wipe file-provider routes (panel / MinIO in 00-static.yml) → 404.
+    if (Object.keys(normalized).length === 0) {
+      try {
+        fs.unlinkSync(this.configPath)
+      } catch (e) {
+        const err = e as NodeJS.ErrnoException
+        if (err.code !== 'ENOENT') throw e
+      }
+      return
+    }
+
     const finalYaml = yaml.dump(normalized, { lineWidth: -1, noRefs: true, sortKeys: false })
     const tempPath = `${this.configPath}.tmp`
 

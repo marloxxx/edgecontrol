@@ -33,16 +33,22 @@ http:
       rule: Host(`edgecontrol.example.com`)
       entryPoints:
         - websecure
+      priority: 10000
+      tls: {}
       service: edgecontrol-panel-svc
     edgecontrol-minio-s3:
       rule: Host(`s3.example.com`)
       entryPoints:
         - websecure
+      priority: 10000
+      tls: {}
       service: edgecontrol-minio-s3-svc
     edgecontrol-minio-console:
       rule: Host(`minio.example.com`)
       entryPoints:
         - websecure
+      priority: 10000
+      tls: {}
       service: edgecontrol-minio-console-svc
   services:
     edgecontrol-panel-svc:

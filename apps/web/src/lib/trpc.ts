@@ -7,12 +7,17 @@ import type { AppRouter } from '@edgecontrol/trpc'
 
 import { persistAuthTokens, readAccessToken, readRefreshToken, storageUsesRememberMe } from '@/lib/auth-storage'
 
-/** In Docker production, leave unset so calls use same-origin `/trpc` (nginx → `http://api:3000`). */
+/**
+ * API base for tRPC `httpBatchLink`.
+ * Production builds always use same-origin `/trpc` (and `/api` elsewhere) so TLS matches the
+ * panel hostname (Traefik → nginx → `api:3000`). `VITE_API_URL` is dev-only; baking an external
+ * HTTPS origin here triggers Chrome “broken HTTPS” when that origin’s certificate is invalid.
+ */
 function defaultApiBase(): string {
+  if (import.meta.env.PROD) return ''
   if (import.meta.env.VITE_API_URL && String(import.meta.env.VITE_API_URL).trim() !== '') {
     return String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
   }
-  if (import.meta.env.PROD) return ''
   return 'http://localhost:3001'
 }
 

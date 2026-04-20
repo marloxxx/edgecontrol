@@ -14,11 +14,10 @@ RUN pnpm install --frozen-lockfile
 COPY apps/web ./apps/web
 COPY packages ./packages
 
-# Optional: `docker compose build web --build-arg VITE_API_URL=…` when not using same-origin + nginx.
-ARG VITE_API_URL
-RUN set -e; \
-    if [ -n "$VITE_API_URL" ]; then export VITE_API_URL="$VITE_API_URL"; fi; \
-    pnpm --filter @edgecontrol/web build
+# Same-origin `/trpc` + `/api` only (nginx proxies to `api:3000`). Clear any stray host env
+# so `vite build` cannot embed an external API origin.
+ENV VITE_API_URL=
+RUN pnpm --filter @edgecontrol/web build
 
 # Stage 2: Serve
 FROM nginx:alpine AS runner

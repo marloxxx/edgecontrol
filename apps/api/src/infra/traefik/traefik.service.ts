@@ -13,7 +13,6 @@ interface RouteConfig {
   targetPort: number
   protocol: string
   healthPath: string
-  /** When false, omit Traefik `loadBalancer.healthCheck` entirely. */
   traefikHealthCheck: boolean
   rateLimitAvg: number | null
   rateLimitBurst: number | null

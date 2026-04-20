@@ -253,11 +253,10 @@ export function ServiceFormModal({ open, onOpenChange, onSuccess, editServiceId 
               </div>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              This is the upstream your app listens on <span className="font-medium text-foreground">inside the private network</span> (for
-              example <span className="font-mono">10.3.1.156:80</span> or <span className="font-mono">:443</span>). Public traffic reaches your
-              hostname on Traefik’s public entrypoints (usually 80/443); Traefik then forwards to this target. You do not add extra rows here
-              only for public 80/443 — use one service per public hostname; set the port to whatever the private app actually uses (80, 443,
-              8080, etc.).
+              Upstream on the <span className="font-medium text-foreground">private link from this host to the backend</span> (e.g. public
+              edge <span className="font-mono">VPS A</span> → <span className="font-mono">10.3.1.156:80</span> on <span className="font-mono">VPS B</span>).
+              Clients use the public hostname on Traefik’s entrypoints (80/443); Traefik forwards here with the original <span className="font-mono">Host</span>.
+              One row per public hostname; set port to what the backend really listens on (80, 443, 8080, …).
             </p>
             <div className="flex flex-col gap-3">
               <div className="space-y-1.5 w-full">

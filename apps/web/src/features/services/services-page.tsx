@@ -63,11 +63,14 @@ export function ServicesPage() {
     {
       id: 'target',
       header: 'Target',
-      cell: (service) => (
-        <span className="font-mono text-sm text-foreground/90">
-          {service.targetHost}:{service.targetPort}
-        </span>
-      )
+      cell: (service) => {
+        const target = `${service.targetHost}:${service.targetPort}`
+        return (
+          <span className="whitespace-nowrap font-mono text-sm text-foreground/90" title={target}>
+            {target}
+          </span>
+        )
+      }
     },
     {
       id: 'enabled',
@@ -142,11 +145,11 @@ export function ServicesPage() {
           addLabel="Add Service"
         />
 
-        <Card className="border-border bg-card w-full">
-          <CardHeader>
-            <CardTitle className="text-foreground">All Services ({services.length})</CardTitle>
+        <Card className="w-full gap-4 border-border bg-card py-5">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-base font-semibold text-foreground">All Services ({services.length})</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-6 pt-3">
             <DataTable
               data={services}
               columns={columns}

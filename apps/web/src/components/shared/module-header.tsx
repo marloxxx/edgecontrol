@@ -25,7 +25,7 @@ export function ModuleHeader({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div className="min-w-0 flex-1">
-        <h2 className="text-2xl font-bold leading-tight text-foreground">{title}</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">{title}</h2>
         {description ? <p className="text-sm text-muted-foreground mt-1">{description}</p> : null}
       </div>
       {hasActions ? (

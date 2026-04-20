@@ -56,7 +56,7 @@ export function DataTable<T extends IdentifiableRow>({
         id: '__actions',
         header: () => <span className="sr-only">Actions</span>,
         cell: ({ row }) => <RowActionsMenu row={row.original} actions={rowActions} />,
-        meta: { headerClassName: 'w-[56px] pr-4 text-right', cellClassName: 'pr-4 text-right' }
+        meta: { headerClassName: 'w-14 min-w-14 shrink-0 pr-3 text-right', cellClassName: 'shrink-0 pr-3 text-right' }
       })
     }
     return mapped
@@ -83,7 +83,7 @@ export function DataTable<T extends IdentifiableRow>({
   const currentPage = Math.min(pageIndex + 1, totalPages)
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <DataTableToolbar
         filters={filters}
         filterValues={filterValues}
@@ -93,7 +93,7 @@ export function DataTable<T extends IdentifiableRow>({
         }}
       />
 
-      <div className={cn('overflow-hidden rounded-xl border border-border bg-card')}>
+      <div className={cn('overflow-hidden rounded-xl border border-border/80 bg-muted/5')}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -101,7 +101,7 @@ export function DataTable<T extends IdentifiableRow>({
                 {headerGroup.headers.map((header) => {
                   const meta = header.column.columnDef.meta as { headerClassName?: string } | undefined
                   return (
-                    <TableHead key={header.id} className={meta?.headerClassName}>
+                    <TableHead key={header.id} className={cn('px-4 py-3.5', meta?.headerClassName)}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   )
@@ -112,7 +112,7 @@ export function DataTable<T extends IdentifiableRow>({
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={table.getAllLeafColumns().length} className="py-10 text-center">
+                <TableCell colSpan={table.getAllLeafColumns().length} className="px-4 py-12 text-center">
                   <EmptyState message={emptyMessage} />
                 </TableCell>
               </TableRow>
@@ -122,7 +122,7 @@ export function DataTable<T extends IdentifiableRow>({
                   {row.getVisibleCells().map((cell) => {
                     const meta = cell.column.columnDef.meta as { cellClassName?: string } | undefined
                     return (
-                      <TableCell key={cell.id} className={meta?.cellClassName}>
+                      <TableCell key={cell.id} className={cn('px-4 py-3.5', meta?.cellClassName)}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     )
